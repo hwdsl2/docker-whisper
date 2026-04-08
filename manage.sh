@@ -1,0 +1,267 @@
+#!/bin/bash
+#
+# https://github.com/hwdsl2/docker-whisper
+#
+# Copyright (C) 2026 Lin Song <linsongui@gmail.com>
+#
+# This work is licensed under the MIT License
+# See: https://opensource.org/licenses/MIT
+
+export PATH="/opt/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+WHISPER_DATA="/var/lib/whisper"
+PORT_FILE="${WHISPER_DATA}/.port"
+MODEL_FILE="${WHISPER_DATA}/.model"
+SERVER_ADDR_FILE="${WHISPER_DATA}/.server_addr"
+
+exiterr() { echo "Error: $1" >&2; exit 1; }
+
+show_usage() {
+  local exit_code="${2:-1}"
+  if [ -n "$1" ]; then
+    echo "Error: $1" >&2
+  fi
+  cat 1>&2 <<'EOF'
+
+Whisper Docker - Server Management
+https://github.com/hwdsl2/docker-whisper
+
+Usage: docker exec <container> whisper_manage [options]
+
+Options:
+  --showinfo                           show server info (model, endpoint, API docs)
+  --listmodels                         list available Whisper model names and sizes
+  --downloadmodel <model>              pre-download a model to the cache volume
+
+  -h, --help                           show this help message and exit
+
+Available models: tiny, tiny.en, base, base.en, small, small.en,
+                  medium, medium.en, large-v2, large-v3, large-v3-turbo
+
+To switch the active model, set WHISPER_MODEL=<name> and restart the container.
+Use '--downloadmodel' to pre-download a model before switching, avoiding a
+delay on the next container start.
+
+Examples:
+  docker exec whisper whisper_manage --showinfo
+  docker exec whisper whisper_manage --listmodels
+  docker exec whisper whisper_manage --downloadmodel large-v3
+  docker exec whisper whisper_manage --downloadmodel large-v3-turbo
+
+EOF
+  exit "$exit_code"
+}
+
+check_container() {
+  if [ ! -f "/.dockerenv" ] && [ ! -f "/run/.containerenv" ] \
+    && [ -z "$KUBERNETES_SERVICE_HOST" ] \
+    && ! head -n 1 /proc/1/sched 2>/dev/null | grep -q '^run\.sh '; then
+    exiterr "This script must be run inside a container (e.g. Docker, Podman)."
+  fi
+}
+
+load_config() {
+  if [ -z "$WHISPER_PORT" ]; then
+    if [ -f "$PORT_FILE" ]; then
+      WHISPER_PORT=$(cat "$PORT_FILE")
+    else
+      WHISPER_PORT=9000
+    fi
+  fi
+
+  if [ -z "$WHISPER_MODEL" ]; then
+    if [ -f "$MODEL_FILE" ]; then
+      WHISPER_MODEL=$(cat "$MODEL_FILE")
+    else
+      WHISPER_MODEL=base
+    fi
+  fi
+
+  if [ -f "$SERVER_ADDR_FILE" ]; then
+    SERVER_ADDR=$(cat "$SERVER_ADDR_FILE")
+  else
+    SERVER_ADDR="<server ip>"
+  fi
+}
+
+check_server() {
+  if ! curl -sf "http://127.0.0.1:${WHISPER_PORT}/health" >/dev/null 2>&1; then
+    exiterr "Whisper server is not responding on port ${WHISPER_PORT}. Is the container fully started?"
+  fi
+}
+
+parse_args() {
+  show_info=0
+  list_models=0
+  download_model=0
+  model_to_download=""
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --showinfo)
+        show_info=1
+        shift
+        ;;
+      --listmodels)
+        list_models=1
+        shift
+        ;;
+      --downloadmodel)
+        download_model=1
+        model_to_download="${2:-}"
+        shift
+        [ "$#" -gt 0 ] && shift
+        ;;
+      -h|--help)
+        show_usage "" 0
+        ;;
+      *)
+        show_usage "Unknown parameter: $1"
+        ;;
+    esac
+  done
+}
+
+check_args() {
+  local action_count
+  action_count=$((show_info + list_models + download_model))
+
+  if [ "$action_count" -eq 0 ]; then
+    show_usage
+  fi
+  if [ "$action_count" -gt 1 ]; then
+    show_usage "Specify only one action at a time."
+  fi
+
+  if [ "$download_model" = 1 ] && [ -z "$model_to_download" ]; then
+    exiterr "Missing model name. Usage: --downloadmodel <model>"
+  fi
+}
+
+do_show_info() {
+  echo
+  echo "==========================================================="
+  echo " Whisper Speech-to-Text Server"
+  echo "==========================================================="
+  echo " Active model: $WHISPER_MODEL"
+  echo " Endpoint:     http://${SERVER_ADDR}:${WHISPER_PORT}"
+  echo "==========================================================="
+  echo
+  echo "API endpoints:"
+  echo "  POST http://${SERVER_ADDR}:${WHISPER_PORT}/v1/audio/transcriptions"
+  echo "  GET  http://${SERVER_ADDR}:${WHISPER_PORT}/v1/models"
+  echo "  GET  http://${SERVER_ADDR}:${WHISPER_PORT}/docs     (interactive docs)"
+  echo
+  echo "Example transcription:"
+  echo "  curl http://${SERVER_ADDR}:${WHISPER_PORT}/v1/audio/transcriptions \\"
+  echo "    -F file=@audio.mp3 -F model=whisper-1"
+  echo
+  echo "To change the active model:"
+  echo "  1. Pre-download: docker exec <container> whisper_manage --downloadmodel <name>"
+  echo "  2. Set WHISPER_MODEL=<name> in your env file and restart the container."
+  echo
+}
+
+do_list_models() {
+  cat <<'EOF'
+
+Available Whisper models:
+
+  Name              Disk     RAM (approx)   Notes
+  ----              ----     ------------   -----
+  tiny              ~75 MB   ~250 MB        Fastest; lower accuracy
+  tiny.en           ~75 MB   ~250 MB        English-only variant
+  base              ~145 MB  ~500 MB        Good balance — default
+  base.en           ~145 MB  ~500 MB        English-only variant
+  small             ~465 MB  ~1.5 GB        Better accuracy
+  small.en          ~465 MB  ~1.5 GB        English-only variant
+  medium            ~1.5 GB  ~5 GB          High accuracy
+  medium.en         ~1.5 GB  ~5 GB          English-only variant
+  large-v2          ~3 GB    ~10 GB         Very high accuracy
+  large-v3          ~3 GB    ~10 GB         Best accuracy (recommended for quality)
+  large-v3-turbo    ~1.6 GB  ~6 GB          Fast + high accuracy (best overall upgrade)
+
+Notes:
+  - English-only (.en) variants are slightly faster for English audio.
+  - large-v3-turbo is recommended over large-v3 for most use cases:
+    comparable accuracy with significantly lower resource usage.
+  - All models are downloaded from HuggingFace (Systran/faster-whisper-*)
+    and cached in the /var/lib/whisper Docker volume.
+  - INT8 quantization (default) reduces RAM usage by approximately 50%.
+
+Use '--downloadmodel <name>' to pre-download a model before switching.
+
+EOF
+}
+
+do_download_model() {
+  # Block download if WHISPER_LOCAL_ONLY is set
+  if [ -n "$WHISPER_LOCAL_ONLY" ]; then
+    exiterr "WHISPER_LOCAL_ONLY is set — model downloads are disabled. Unset it to allow downloads."
+  fi
+
+  # Validate model name
+  case "$model_to_download" in
+    tiny|tiny.en|base|base.en|small|small.en|medium|medium.en|\
+    large-v1|large-v2|large-v3|large-v3-turbo|turbo) ;;
+    *)
+      exiterr "Unknown model '$model_to_download'. Run '--listmodels' to see valid names."
+      ;;
+  esac
+
+  echo
+  echo "Downloading model '${model_to_download}' to /var/lib/whisper..."
+  echo "This may take several minutes depending on model size and network speed."
+  echo
+
+  export HF_HOME=/var/lib/whisper
+
+  _MODEL="$model_to_download" python3 - << 'PYEOF'
+import os, sys
+
+model_name = os.environ["_MODEL"]
+cache_dir  = os.environ.get("HF_HOME", "/var/lib/whisper")
+
+try:
+    from faster_whisper import WhisperModel
+    print(f"  Downloading '{model_name}' (compute_type=int8) ...")
+    sys.stdout.flush()
+    WhisperModel(
+        model_name,
+        device="cpu",
+        compute_type="int8",
+        download_root=cache_dir,
+    )
+    print(f"  Model '{model_name}' downloaded successfully.")
+    print(f"  Cache location: {cache_dir}")
+except Exception as exc:
+    print(f"Error: {exc}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+
+  echo
+  echo "To activate this model, set WHISPER_MODEL=${model_to_download} in your"
+  echo "env file (whisper.env) and restart the container."
+  echo
+}
+
+check_container
+load_config
+parse_args "$@"
+check_args
+
+if [ "$show_info" = 1 ]; then
+  check_server
+  do_show_info
+  exit 0
+fi
+
+if [ "$list_models" = 1 ]; then
+  do_list_models
+  exit 0
+fi
+
+if [ "$download_model" = 1 ]; then
+  do_download_model
+  exit 0
+fi
