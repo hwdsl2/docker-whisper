@@ -1,0 +1,35 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/main.yml'
+      - '.github/workflows/buildx.yml'
+      - '.github/workflows/shellcheck.yml'
+      - '.github/workflows/whisper_test.yml'
+      - '.dockerignore'
+      - 'api_server.py'
+      - 'Dockerfile'
+      - 'manage.sh'
+      - 'run.sh'
+      - 'whisper.env.example'
+
+jobs:
+  shellcheck:
+    if: github.repository_owner == 'hwdsl2'
+    uses: ./.github/workflows/shellcheck.yml
+
+  whisper_test:
+    if: github.repository_owner == 'hwdsl2'
+    uses: ./.github/workflows/whisper_test.yml
+
+  buildx:
+    needs: [shellcheck, whisper_test]
+    uses: ./.github/workflows/buildx.yml
+    secrets:
+      CACHE_NAME: ${{ secrets.CACHE_NAME }}
+      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+      QUAY_USER: ${{ secrets.QUAY_USER }}
+      QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+      BUILD_ONLY: ${{ secrets.BUILD_ONLY }}

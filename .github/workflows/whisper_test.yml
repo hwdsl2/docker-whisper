@@ -1,0 +1,127 @@
+name: whisper_test
+
+on: workflow_call
+
+jobs:
+  whisper_test:
+    runs-on: ubuntu-24.04
+    if: github.repository_owner == 'hwdsl2'
+    strategy:
+      matrix:
+        test_id: [no-env, with-env]
+      fail-fast: false
+    env:
+      TEST_ID: ${{ matrix.test_id }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Test
+        run: |
+          [ ! -x /usr/bin/docker ] && exit 1
+
+          cd "$GITHUB_WORKSPACE"
+          pwd
+          ls -ld whisper.env.example
+
+          sed -i \
+            -e '/WHISPER_LOG_LEVEL=/s/# //' \
+            -e '/WHISPER_BEAM=/s/# //' \
+            whisper.env.example
+
+          set -x
+
+          docker build -t whisper-test .
+
+          if [ "$TEST_ID" = "with-env" ]; then
+            docker run \
+              --name "$TEST_ID" \
+              --restart=always \
+              -v whisper-test-data:/var/lib/whisper \
+              -v ./whisper.env.example:/whisper.env:ro \
+              -e WHISPER_MODEL=tiny \
+              -p 9000:9000/tcp \
+              -d whisper-test
+          elif [ "$TEST_ID" = "no-env" ]; then
+            docker run \
+              --name "$TEST_ID" \
+              --restart=always \
+              -v whisper-test-data:/var/lib/whisper \
+              -e WHISPER_MODEL=tiny \
+              -p 9000:9000/tcp \
+              -d whisper-test
+          fi
+
+          # Wait for server to be ready (up to 300 seconds for model download)
+          i=0
+          while [ "$i" -lt 300 ]; do
+            if docker exec "$TEST_ID" curl -sf http://127.0.0.1:9000/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+            i=$((i + 1))
+          done
+
+          docker ps | grep "$TEST_ID"
+          docker logs "$TEST_ID"
+
+          # Verify health endpoint
+          docker exec "$TEST_ID" curl -sf http://127.0.0.1:9000/health
+
+          # Verify models endpoint
+          docker exec "$TEST_ID" curl -sf http://127.0.0.1:9000/v1/models \
+            | grep -q '"object"'
+
+          # Test whisper_manage commands
+          docker exec "$TEST_ID" whisper_manage --showinfo
+          docker exec "$TEST_ID" whisper_manage --listmodels
+
+          # Generate a minimal test audio file and test the transcription endpoint
+          if [ ! -x /usr/bin/ffmpeg ]; then
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt-get -yqq update
+            sudo apt-get -yqq install ffmpeg
+          fi
+          ffmpeg -y -f lavfi -i "sine=frequency=440:duration=1" -ar 16000 -ac 1 /tmp/test.wav
+
+          # Test transcription endpoint (json format)
+          curl -sf http://127.0.0.1:9000/v1/audio/transcriptions \
+            -F file=@/tmp/test.wav -F model=whisper-1 \
+            | grep -q '"text"'
+
+          # Test transcription endpoint (text format)
+          curl -sf http://127.0.0.1:9000/v1/audio/transcriptions \
+            -F file=@/tmp/test.wav -F model=whisper-1 -F response_format=text
+
+          # Test transcription endpoint (verbose_json format)
+          curl -sf http://127.0.0.1:9000/v1/audio/transcriptions \
+            -F file=@/tmp/test.wav -F model=whisper-1 -F response_format=verbose_json \
+            | grep -q '"segments"'
+
+          docker restart "$TEST_ID"
+
+          sleep 15
+
+          # Wait for server to come back (up to 120 seconds)
+          i=0
+          while [ "$i" -lt 120 ]; do
+            if docker exec "$TEST_ID" curl -sf http://127.0.0.1:9000/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+            i=$((i + 1))
+          done
+
+          docker ps | grep "$TEST_ID"
+          docker logs "$TEST_ID"
+
+          # Verify server is healthy after restart
+          docker exec "$TEST_ID" curl -sf http://127.0.0.1:9000/health
+
+          exit 0
+      - name: Clear
+        if: always()
+        run: |
+          docker rm -f "$TEST_ID" || true
+          docker volume rm whisper-test-data || true
+          docker rmi whisper-test || true
