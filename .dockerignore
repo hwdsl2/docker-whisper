@@ -1,0 +1,7 @@
+.git
+.github
+.gitignore
+docker-compose.yml
+README*.md
+whisper.env
+whisper.env.example
