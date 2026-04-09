@@ -28,7 +28,7 @@ RUN set -x \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
     && find /opt/venv -name '*.pyi' -delete \
-    && find /opt/venv -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true \
+    && { find /opt/venv -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true; } \
     && mkdir -p /var/lib/whisper
 
 COPY ./run.sh /opt/src/run.sh
