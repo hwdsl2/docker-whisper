@@ -255,7 +255,7 @@ All server data is stored in the Docker volume (`/var/lib/whisper` inside the co
 
 ```
 /var/lib/whisper/
-├── hub/                  # Cached Whisper model files (downloaded from HuggingFace)
+├── models--Systran--faster-whisper-*/   # Cached Whisper model files (downloaded from HuggingFace)
 ├── .port                 # Active port (used by whisper_manage)
 ├── .model                # Active model name (used by whisper_manage)
 └── .server_addr          # Cached server IP (used by whisper_manage)

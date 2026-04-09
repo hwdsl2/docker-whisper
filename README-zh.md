@@ -255,7 +255,7 @@ http://您的服务器IP:9000/docs
 
 ```
 /var/lib/whisper/
-├── hub/                  # 缓存的 Whisper 模型文件（从 HuggingFace 下载）
+├── models--Systran--faster-whisper-*/   # 缓存的 Whisper 模型文件（从 HuggingFace 下载）
 ├── .port                 # 当前端口（供 whisper_manage 使用）
 ├── .model                # 当前模型名称（供 whisper_manage 使用）
 └── .server_addr          # 缓存的服务器 IP（供 whisper_manage 使用）

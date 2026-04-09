@@ -255,7 +255,7 @@ http://IP_вашего_сервера:9000/docs
 
 ```
 /var/lib/whisper/
-├── hub/                  # Кэшированные файлы модели Whisper (скачаны с HuggingFace)
+├── models--Systran--faster-whisper-*/   # Кэшированные файлы модели Whisper (скачаны с HuggingFace)
 ├── .port                 # Активный порт (используется whisper_manage)
 ├── .model                # Активное название модели (используется whisper_manage)
 └── .server_addr          # Кэшированный IP сервера (используется whisper_manage)
