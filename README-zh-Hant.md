@@ -17,7 +17,11 @@
 - 透過 Docker 資料卷持久化模型快取
 - 多架構支援：`linux/amd64`、`linux/arm64`
 
-**另提供：** [LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)、[WireGuard](https://github.com/hwdsl2/docker-wireguard/blob/main/README-zh-Hant.md)、[OpenVPN](https://github.com/hwdsl2/docker-openvpn/blob/main/README-zh-Hant.md)、[IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server/blob/master/README-zh-Hant.md) 與 [Headscale](https://github.com/hwdsl2/docker-headscale/blob/main/README-zh-Hant.md) 的 Docker 映像。
+**另提供：**
+- AI/音訊：[Kokoro TTS](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)
+- VPN：[WireGuard](https://github.com/hwdsl2/docker-wireguard/blob/main/README-zh-Hant.md)、[OpenVPN](https://github.com/hwdsl2/docker-openvpn/blob/main/README-zh-Hant.md)、[IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server/blob/master/README-zh-Hant.md)、[Headscale](https://github.com/hwdsl2/docker-headscale/blob/main/README-zh-Hant.md)
+
+**提示：** Whisper、LiteLLM 和 Kokoro TTS 可以[搭配使用](#與其他-ai-服務搭配使用)，在您自己的伺服器上搭建一套完整的語音 AI 系統。
 
 ## 快速開始
 
@@ -98,7 +102,7 @@ docker image tag quay.io/hwdsl2/whisper-server hwdsl2/whisper-server
 | `WHISPER_BEAM` | 轉錄解碼的 beam 大小。較大的值可能以速度換取精確度。使用 `1` 可獲得最快的貪婪解碼。 | `5` |
 | `WHISPER_LOCAL_ONLY` | 設為任意非空值（如 `true`）時，停用所有 HuggingFace 模型下載。適用於預先快取模型的離線或隔離網路部署。 | *（未設定）* |
 
-**注意：** 在 `env` 檔案中，值可用單引號括起，例如 `VAR='value'`。`=` 兩側不要有空格。如更改 `WHISPER_PORT`，請相應更新 `docker run` 指令中的 `-p` 參數。
+**注：** 在 `env` 檔案中，值可用單引號括起，例如 `VAR='value'`。`=` 兩側不要有空格。如更改 `WHISPER_PORT`，請相應更新 `docker run` 指令中的 `-p` 參數。
 
 使用 `env` 檔案的範例：
 
@@ -155,7 +159,7 @@ volumes:
   whisper-data:
 ```
 
-**注意：** 如需面向公網部署，強烈建議使用[反向代理](#使用反向代理)啟用 HTTPS。此時請將 `docker-compose.yml` 中的 `"9000:9000/tcp"` 改為 `"127.0.0.1:9000:9000/tcp"`，以防止未加密連接埠被直接存取。
+**注：** 如需面向公網部署，強烈建議使用[反向代理](#使用反向代理)啟用 HTTPS。此時請將 `docker-compose.yml` 中的 `"9000:9000/tcp"` 改為 `"127.0.0.1:9000:9000/tcp"`，以防止未加密連接埠被直接存取。
 
 ## API 參考
 
@@ -388,6 +392,43 @@ docker rm -f whisper
 
 您下載的模型將保留在 `whisper-data` 資料卷中。
 
+## 與其他 AI 服務搭配使用
+
+[Whisper](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh-Hant.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md) 和 [Kokoro TTS](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md) 映像檔可以組合使用，在您自己的伺服器上搭建一個完全私密的自託管語音 AI 助理，不向第三方傳送任何語音資料。
+
+```mermaid
+graph LR
+    A["🎤 語音輸入"] -->|轉錄| W["Whisper<br/>(語音轉文字)"]
+    W -->|文字| L["LiteLLM<br/>(AI 閘道)"]
+    L -->|回應| T["Kokoro TTS<br/>(文字轉語音)"]
+    T --> B["🔊 語音輸出"]
+```
+
+- **[Whisper](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh-Hant.md)** — 將語音音訊轉錄為文字（連接埠 `9000`）
+- **[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)** — 將文字傳送給大型語言模型並傳回回應（連接埠 `4000`）
+- **[Kokoro TTS](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md)** — 將回應文字轉換為語音（連接埠 `8880`）
+
+三個容器都執行後，您可以將它們的 API 串接使用：
+
+```bash
+# 第一步：將語音音訊轉錄為文字（Whisper）
+TEXT=$(curl -s http://localhost:9000/v1/audio/transcriptions \
+    -F file=@question.mp3 -F model=whisper-1 | jq -r .text)
+
+# 第二步：將文字傳送給大型語言模型並取得回應（LiteLLM）
+RESPONSE=$(curl -s http://localhost:4000/v1/chat/completions \
+    -H "Authorization: Bearer <your-litellm-key>" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"$TEXT\"}]}" \
+    | jq -r '.choices[0].message.content')
+
+# 第三步：將回應轉換為語音（Kokoro TTS）
+curl -s http://localhost:8880/v1/audio/speech \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"tts-1\",\"input\":\"$RESPONSE\",\"voice\":\"af_heart\"}" \
+    --output response.mp3
+```
+
 ## 技術細節
 
 - 基礎映像檔：`python:3.12-slim`（Debian）
@@ -400,7 +441,7 @@ docker rm -f whisper
 
 ## 授權條款
 
-**注意：** 預構建映像檔中包含的軟體元件（如 faster-whisper 及其相依套件）均受各自版權持有者所選授權條款約束。使用預構建映像檔時，使用者有責任確保其使用方式符合映像檔內所有軟體的相關授權條款要求。
+**注：** 預構建映像檔中包含的軟體元件（如 faster-whisper 及其相依套件）均受各自版權持有者所選授權條款約束。使用預構建映像檔時，使用者有責任確保其使用方式符合映像檔內所有軟體的相關授權條款要求。
 
 著作權所有 (C) 2026 Lin Song   
 本作品採用 [MIT 授權條款](https://opensource.org/licenses/MIT)。

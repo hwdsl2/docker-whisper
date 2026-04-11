@@ -17,7 +17,11 @@ A Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-t
 - Persistent model cache via a Docker volume
 - Multi-arch: `linux/amd64`, `linux/arm64`
 
-**Also available:** Docker images for [LiteLLM](https://github.com/hwdsl2/docker-litellm), [WireGuard](https://github.com/hwdsl2/docker-wireguard), [OpenVPN](https://github.com/hwdsl2/docker-openvpn), [IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server) and [Headscale](https://github.com/hwdsl2/docker-headscale).
+**Also available:**
+- AI/Audio: [Kokoro TTS](https://github.com/hwdsl2/docker-kokoro), [LiteLLM](https://github.com/hwdsl2/docker-litellm)
+- VPN: [WireGuard](https://github.com/hwdsl2/docker-wireguard), [OpenVPN](https://github.com/hwdsl2/docker-openvpn), [IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server), [Headscale](https://github.com/hwdsl2/docker-headscale)
+
+**Tip:** Whisper, LiteLLM, and Kokoro TTS can be [used together](#using-with-other-ai-services) to build a complete voice AI pipeline on your own server.
 
 ## Quick start
 
@@ -387,6 +391,43 @@ docker rm -f whisper
 ```
 
 Your downloaded models are preserved in the `whisper-data` volume.
+
+## Using with other AI services
+
+The [Whisper](https://github.com/hwdsl2/docker-whisper), [LiteLLM](https://github.com/hwdsl2/docker-litellm), and [Kokoro TTS](https://github.com/hwdsl2/docker-kokoro) images can be combined to build a private, self-hosted voice AI assistant entirely on your own server, with no voice data sent to third parties.
+
+```mermaid
+graph LR
+    A["🎤 Audio input"] -->|transcribe| W["Whisper<br/>(speech-to-text)"]
+    W -->|text| L["LiteLLM<br/>(AI gateway)"]
+    L -->|response| T["Kokoro TTS<br/>(text-to-speech)"]
+    T --> B["🔊 Audio output"]
+```
+
+- **[Whisper](https://github.com/hwdsl2/docker-whisper)** — transcribes spoken audio to text (port `9000`)
+- **[LiteLLM](https://github.com/hwdsl2/docker-litellm)** — routes the text to an LLM and returns a response (port `4000`)
+- **[Kokoro TTS](https://github.com/hwdsl2/docker-kokoro)** — converts the response back to speech (port `8880`)
+
+Once all three containers are running, you can chain their APIs together:
+
+```bash
+# Step 1: Transcribe audio to text (Whisper)
+TEXT=$(curl -s http://localhost:9000/v1/audio/transcriptions \
+    -F file=@question.mp3 -F model=whisper-1 | jq -r .text)
+
+# Step 2: Send text to an LLM and get a response (LiteLLM)
+RESPONSE=$(curl -s http://localhost:4000/v1/chat/completions \
+    -H "Authorization: Bearer <your-litellm-key>" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"$TEXT\"}]}" \
+    | jq -r '.choices[0].message.content')
+
+# Step 3: Convert the response to speech (Kokoro TTS)
+curl -s http://localhost:8880/v1/audio/speech \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"tts-1\",\"input\":\"$RESPONSE\",\"voice\":\"af_heart\"}" \
+    --output response.mp3
+```
 
 ## Technical details
 

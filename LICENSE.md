@@ -38,7 +38,7 @@ This Docker image incorporates the following third-party software:
 
 **Uvicorn**
 - Copyright (C) 2017-present, Encode OSS Ltd. All rights reserved.
-- Licensed under the BSD License
+- Licensed under the BSD 3-Clause License
 - https://github.com/encode/uvicorn/blob/master/LICENSE.md
 
 **ffmpeg** (Debian package, used as an external tool for audio decoding)
