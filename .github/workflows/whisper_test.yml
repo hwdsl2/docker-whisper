@@ -98,6 +98,11 @@ jobs:
             -F file=@/tmp/test.wav -F model=whisper-1 -F response_format=verbose_json \
             | grep -q '"segments"'
 
+          # Test streaming transcription endpoint (stream=true, SSE)
+          stream_output=$(curl -sN http://127.0.0.1:9000/v1/audio/transcriptions \
+            -F file=@/tmp/test.wav -F model=whisper-1 -F stream=true)
+          echo "$stream_output" | grep -q '"type"'
+
           docker restart "$TEST_ID"
 
           sleep 15
