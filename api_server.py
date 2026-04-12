@@ -12,16 +12,19 @@ This work is licensed under the MIT License
 See: https://opensource.org/licenses/MIT
 """
 
+import asyncio
+import json
 import logging
 import os
 import tempfile
+import threading
 import time
 from contextlib import asynccontextmanager
 from typing import Optional
 
 import uvicorn
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -42,6 +45,10 @@ logger = logging.getLogger("whisper_server")
 _model = None       # WhisperModel instance
 _model_name = None  # name as loaded (e.g. "base")
 _beam_size = 5      # beam size used for transcription
+
+# Serialise all inference calls (batch and streaming) so that CTranslate2 is
+# never called concurrently from multiple threads.
+_inference_lock = threading.Lock()
 
 
 def _load_model() -> None:
@@ -157,6 +164,78 @@ def _to_vtt(segments) -> str:
 
 
 # ---------------------------------------------------------------------------
+# SSE streaming helper
+# ---------------------------------------------------------------------------
+
+
+async def _stream_sse(
+    tmp_path: str,
+    lang: Optional[str],
+    prompt: Optional[str],
+    temperature: float,
+):
+    """
+    Async generator that yields Server-Sent Events (SSE) frames, one per
+    transcribed segment, followed by a final 'done' frame.
+
+    Inference runs in a thread-pool worker so the event loop stays responsive
+    while the CPU-bound model decodes the audio.  _inference_lock ensures that
+    only one transcription (batch or streaming) runs at a time.
+
+    The temporary audio file is deleted when the generator finishes (or is
+    abandoned by the client).
+    """
+    loop = asyncio.get_running_loop()
+    seg_queue: asyncio.Queue = asyncio.Queue()
+
+    def _run() -> None:
+        with _inference_lock:
+            try:
+                segs_gen, _ = _model.transcribe(
+                    tmp_path,
+                    language=lang,
+                    initial_prompt=prompt or None,
+                    temperature=temperature,
+                    beam_size=_beam_size,
+                    vad_filter=True,
+                )
+                for seg in segs_gen:
+                    loop.call_soon_threadsafe(seg_queue.put_nowait, seg)
+            except Exception as exc:  # noqa: BLE001
+                loop.call_soon_threadsafe(seg_queue.put_nowait, exc)
+            finally:
+                loop.call_soon_threadsafe(seg_queue.put_nowait, None)  # sentinel
+
+    loop.run_in_executor(None, _run)
+    text_parts: list = []
+
+    try:
+        while True:
+            item = await seg_queue.get()
+            if item is None:
+                break
+            if isinstance(item, Exception):
+                logger.error("Streaming transcription error: %s", item)
+                yield f'data: {json.dumps({"type": "error", "detail": str(item)})}\n\n'
+                return
+            text_parts.append(item.text.strip())
+            payload = json.dumps({
+                "type": "segment",
+                "start": round(item.start, 3),
+                "end":   round(item.end, 3),
+                "text":  item.text.strip(),
+            })
+            yield f"data: {payload}\n\n"
+        # Final frame — assembled full transcript, mirrors the batch JSON response
+        yield f'data: {json.dumps({"type": "done", "text": " ".join(text_parts).strip()})}\n\n'
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 
@@ -209,6 +288,15 @@ async def transcribe(
         default=0.0,
         description="Sampling temperature between 0 and 1.",
     ),
+    stream: bool = Form(
+        default=False,
+        description=(
+            "Stream segments as Server-Sent Events (text/event-stream). "
+            "When true, the response is a series of 'data:' frames — one per "
+            "decoded segment — followed by a final 'done' frame. "
+            "response_format is ignored when stream=true."
+        ),
+    ),
     _auth: None = Depends(_verify_api_key),
 ):
     """
@@ -218,15 +306,21 @@ async def transcribe(
     Accepts the same multipart/form-data parameters and returns the same
     response shapes.
 
+    When stream=true the response is text/event-stream (SSE).  Each event
+    carries a JSON object:
+      - segment frames: {"type":"segment","start":0.0,"end":2.1,"text":"..."}
+      - final frame:    {"type":"done","text":"full assembled transcript"}
+      - error frame:    {"type":"error","detail":"..."}
+
     Supported audio formats: mp3, mp4, mpeg, mpga, m4a, wav, webm, ogg, flac
     (all formats supported by ffmpeg).
     """
     if _model is None:
         raise HTTPException(status_code=503, detail="Model is not loaded yet. Please retry.")
 
-    # Validate response_format
+    # Validate response_format (only relevant for non-streaming responses)
     valid_formats = {"json", "text", "verbose_json", "srt", "vtt"}
-    if response_format not in valid_formats:
+    if not stream and response_format not in valid_formats:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid response_format '{response_format}'. "
@@ -251,21 +345,48 @@ async def transcribe(
             tmp_path = tmp.name
             content = await file.read()
             tmp.write(content)
+    except Exception as exc:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        logger.exception("Failed to save upload: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Failed to save upload: {exc}") from exc
 
-        logger.info(
-            "Transcribing '%s' (%d bytes) | lang=%s format=%s",
-            original_name, len(content), lang or "auto", response_format,
+    logger.info(
+        "Transcribing '%s' (%d bytes) | lang=%s format=%s stream=%s",
+        original_name, len(content), lang or "auto", response_format, stream,
+    )
+
+    # ------------------------------------------------------------------
+    # Streaming path — inference runs in a thread; temp file cleaned up
+    # inside the generator when the stream ends or the client disconnects.
+    # ------------------------------------------------------------------
+    if stream:
+        return StreamingResponse(
+            _stream_sse(tmp_path, lang, prompt, temperature),
+            media_type="text/event-stream",
+            headers={
+                "X-Accel-Buffering": "no",   # disable nginx proxy buffering
+                "Cache-Control": "no-cache",
+            },
         )
 
-        segments_gen, info = _model.transcribe(
-            tmp_path,
-            language=lang,
-            initial_prompt=prompt or None,
-            temperature=temperature,
-            beam_size=_beam_size,
-            vad_filter=True,
-        )
-        segments = list(segments_gen)  # consume the generator before the temp file is removed
+    # ------------------------------------------------------------------
+    # Batch path (original behaviour — unchanged)
+    # ------------------------------------------------------------------
+    try:
+        with _inference_lock:
+            segments_gen, info = _model.transcribe(
+                tmp_path,
+                language=lang,
+                initial_prompt=prompt or None,
+                temperature=temperature,
+                beam_size=_beam_size,
+                vad_filter=True,
+            )
+            segments = list(segments_gen)  # consume the generator before the temp file is removed
 
     except HTTPException:
         raise
