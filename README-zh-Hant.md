@@ -12,16 +12,17 @@
 - 音訊資料保留在您的伺服器上，不傳送給第三方
 - 支援所有主流音訊格式（mp3、m4a、wav、webm、ogg、flac 及 ffmpeg 支援的所有格式）
 - 多種回應格式：JSON、純文字、詳細 JSON、SRT 字幕、WebVTT 字幕
+- 串流轉錄 — 加入 `stream=true` 參數，即可透過 SSE 在解碼時逐段接收轉錄結果，無需等待整個檔案處理完成
 - 離線/隔離網路模式 — 使用預先快取的模型無需網際網路存取 (`WHISPER_LOCAL_ONLY`)
 - 透過 [GitHub Actions](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml) 自動建置和發布
 - 透過 Docker 資料卷持久化模型快取
 - 多架構支援：`linux/amd64`、`linux/arm64`
 
 **另提供：**
-- AI/音訊：[Kokoro TTS](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)
+- AI/音訊：[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh-Hant.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)
 - VPN：[WireGuard](https://github.com/hwdsl2/docker-wireguard/blob/main/README-zh-Hant.md)、[OpenVPN](https://github.com/hwdsl2/docker-openvpn/blob/main/README-zh-Hant.md)、[IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server/blob/master/README-zh-Hant.md)、[Headscale](https://github.com/hwdsl2/docker-headscale/blob/main/README-zh-Hant.md)
 
-**提示：** Whisper、LiteLLM 和 Kokoro TTS 可以[搭配使用](#與其他-ai-服務搭配使用)，在您自己的伺服器上搭建一套完整的語音 AI 系統。
+**提示：** Whisper、Kokoro、Embeddings 和 LiteLLM 可以[搭配使用](#與其他-ai-服務搭配使用)，在您自己的伺服器上建立完整的私密 AI 系統。
 
 ## 快速開始
 
@@ -184,8 +185,9 @@ Content-Type: multipart/form-data
 | `model` | 字串 | ✅ | 傳入 `whisper-1`（值被接受，但始終使用目前啟用的模型）。 |
 | `language` | 字串 | — | BCP-47 語言代碼。覆寫本次請求的 `WHISPER_LANGUAGE` 設定。 |
 | `prompt` | 字串 | — | 選用文字，用於引導模型風格或延續前一段內容。 |
-| `response_format` | 字串 | — | 輸出格式，預設為 `json`。請參閱[回應格式](#回應格式)。 |
+| `response_format` | 字串 | — | 輸出格式，預設為 `json`。請參閱[回應格式](#回應格式)。`stream=true` 時忽略此參數。 |
 | `temperature` | 浮點數 | — | 採樣溫度（0–1），預設為 `0`。 |
+| `stream` | 布林值 | — | 啟用 SSE 串流。為 `true` 時，段落將在解碼時以 `text/event-stream` 事件形式回傳。預設為 `false`。 |
 
 **範例：**
 
@@ -214,6 +216,59 @@ curl http://您的伺服器IP:9000/v1/audio/transcriptions \
 | `verbose_json` | 完整 JSON，包含語言、時長、逐段時間戳記及對數機率 |
 | `srt` | SubRip 字幕格式（`.srt`） |
 | `vtt` | WebVTT 字幕格式（`.vtt`） |
+
+**範例 — 串流接收解碼段落：**
+
+```bash
+curl http://您的伺服器IP:9000/v1/audio/transcriptions \
+    -F file=@long-audio.mp3 \
+    -F model=whisper-1 \
+    -F stream=true
+```
+
+**SSE 回應**（每個段落一個事件，最後一個為 `done` 事件）：
+
+```
+data: {"type":"segment","start":0.0,"end":2.4,"text":"您好，最近好嗎？"}
+
+data: {"type":"segment","start":2.8,"end":5.1,"text":"我很好，謝謝。"}
+
+data: {"type":"done","text":"您好，最近好嗎？ 我很好，謝謝。"}
+```
+
+上傳後第一個段落通常在 1–3 秒內到達。每個 `segment` 事件包含以秒為單位的 `start`/`end` 時間戳記。最後的 `done` 事件包含與標準 `json` 回應等效的完整轉錄文字。
+
+**範例 — 透過瀏覽器 `fetch` 進行串流傳輸：**
+
+```javascript
+const form = new FormData();
+form.append("file", audioBlob, "audio.webm");
+form.append("model", "whisper-1");
+form.append("stream", "true");
+
+const res = await fetch("http://您的伺服器IP:9000/v1/audio/transcriptions", {
+  method: "POST", body: form,
+});
+
+const reader = res.body.getReader();
+const decoder = new TextDecoder();
+let buffer = "";
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  buffer += decoder.decode(value, { stream: true });
+  // SSE frames are separated by "\n\n"; split and process complete frames
+  const frames = buffer.split("\n\n");
+  buffer = frames.pop(); // keep any incomplete trailing frame
+  for (const frame of frames) {
+    if (!frame.startsWith("data: ")) continue;
+    const event = JSON.parse(frame.slice(6));
+    if (event.type === "segment") console.log(event.text);
+    if (event.type === "done") console.log("Full text:", event.text);
+  }
+}
+```
 
 **範例 — 取得 SRT 字幕：**
 
@@ -362,6 +417,7 @@ server {
         proxy_set_header   X-Real-IP $remote_addr;
         proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;       # SSE 串流所需
         proxy_read_timeout 300s;
     }
 }
@@ -394,39 +450,75 @@ docker rm -f whisper
 
 ## 與其他 AI 服務搭配使用
 
-[Whisper](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh-Hant.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md) 和 [Kokoro TTS](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md) 映像檔可以組合使用，在您自己的伺服器上搭建一個完全私密的自託管語音 AI 助理，不向第三方傳送任何語音資料。
+[Whisper (STT)](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh-Hant.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh-Hant.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md) 和 [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md) 映像可以組合使用，在您自己的伺服器上建立完整的私密 AI 系統——從語音輸入/輸出到檢索增強生成（RAG）。Whisper、Kokoro 和 Embeddings 完全在本地端執行。當 LiteLLM 僅使用本地端模型（例如 Ollama）時，資料不會傳送給第三方。如果您將 LiteLLM 設定為使用外部提供商（例如 OpenAI、Anthropic），您的資料將被傳送至這些提供商處理。
 
 ```mermaid
 graph LR
+    D["📄 文件"] -->|向量化| E["Embeddings<br/>(文字轉向量)"]
+    E -->|儲存| VDB["向量資料庫<br/>(Qdrant, Chroma)"]
     A["🎤 語音輸入"] -->|轉錄| W["Whisper<br/>(語音轉文字)"]
-    W -->|文字| L["LiteLLM<br/>(AI 閘道)"]
+    W -->|查詢| E
+    VDB -->|上下文| L["LiteLLM<br/>(AI 閘道)"]
+    W -->|文字| L
     L -->|回應| T["Kokoro TTS<br/>(文字轉語音)"]
     T --> B["🔊 語音輸出"]
 ```
 
-- **[Whisper](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh-Hant.md)** — 將語音音訊轉錄為文字（連接埠 `9000`）
-- **[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)** — 將文字傳送給大型語言模型並傳回回應（連接埠 `4000`）
-- **[Kokoro TTS](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md)** — 將回應文字轉換為語音（連接埠 `8880`）
+| 服務 | 功能 | 預設連接埠 |
+|---|---|---|
+| **[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh-Hant.md)** | 將文字轉換為向量，用於語意搜尋和 RAG | `8000` |
+| **[Whisper (STT)](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh-Hant.md)** | 將語音音訊轉錄為文字 | `9000` |
+| **[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)** | AI 閘道——將請求路由至 OpenAI、Anthropic、Ollama 及 100+ 其他提供商 | `4000` |
+| **[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md)** | 將文字轉換為自然語音 | `8880` |
 
-三個容器都執行後，您可以將它們的 API 串接使用：
+### 語音對話範例
+
+將語音問題轉錄為文字，從大型語言模型取得回答，並轉換為語音輸出：
 
 ```bash
-# 第一步：將語音音訊轉錄為文字（Whisper）
+# 步驟 1：將語音音訊轉錄為文字（Whisper）
 TEXT=$(curl -s http://localhost:9000/v1/audio/transcriptions \
     -F file=@question.mp3 -F model=whisper-1 | jq -r .text)
 
-# 第二步：將文字傳送給大型語言模型並取得回應（LiteLLM）
+# 步驟 2：將文字傳送給大型語言模型並取得回應（LiteLLM）
 RESPONSE=$(curl -s http://localhost:4000/v1/chat/completions \
     -H "Authorization: Bearer <your-litellm-key>" \
     -H "Content-Type: application/json" \
     -d "{\"model\":\"gpt-4o\",\"messages\":[{\"role\":\"user\",\"content\":\"$TEXT\"}]}" \
     | jq -r '.choices[0].message.content')
 
-# 第三步：將回應轉換為語音（Kokoro TTS）
+# 步驟 3：將回應轉換為語音（Kokoro TTS）
 curl -s http://localhost:8880/v1/audio/speech \
     -H "Content-Type: application/json" \
     -d "{\"model\":\"tts-1\",\"input\":\"$RESPONSE\",\"voice\":\"af_heart\"}" \
     --output response.mp3
+```
+
+### RAG 檢索增強生成範例
+
+對文件進行向量化以實現語意檢索，並將檢索到的上下文傳送給大型語言模型進行問答：
+
+```bash
+# 步驟 1：對文件片段進行向量化並存入向量資料庫
+curl -s http://localhost:8000/v1/embeddings \
+    -H "Content-Type: application/json" \
+    -d '{"input": "Docker simplifies deployment by packaging apps in containers.", "model": "text-embedding-ada-002"}' \
+    | jq '.data[0].embedding'
+# → 將返回的向量連同原文一起存入 Qdrant、Chroma、pgvector 等向量資料庫。
+
+# 步驟 2：查詢時，對問題進行向量化並從向量資料庫檢索最相關的文件片段，
+#          然後將問題和檢索到的上下文傳送給 LiteLLM 以取得 LLM 回應。
+curl -s http://localhost:4000/v1/chat/completions \
+    -H "Authorization: Bearer <your-litellm-key>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "model": "gpt-4o",
+      "messages": [
+        {"role": "system", "content": "請僅根據所提供的上下文進行回答。"},
+        {"role": "user", "content": "Docker 的作用是什麼？\n\n上下文：Docker 通過將應用打包為容器來簡化部署流程。"}
+      ]
+    }' \
+    | jq -r '.choices[0].message.content'
 ```
 
 ## 技術細節

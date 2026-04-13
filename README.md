@@ -12,16 +12,17 @@ A Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-t
 - Audio stays on your server — no data sent to third parties
 - All major audio formats supported (mp3, m4a, wav, webm, ogg, flac, and all ffmpeg formats)
 - Multiple response formats: JSON, plain text, verbose JSON, SRT subtitles, WebVTT subtitles
+- Streaming transcription — add `stream=true` to receive segments via SSE as they are decoded, with no waiting for the full file
 - Offline/air-gapped mode — run without internet access using pre-cached models (`WHISPER_LOCAL_ONLY`)
 - Automatically built and published via [GitHub Actions](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml)
 - Persistent model cache via a Docker volume
 - Multi-arch: `linux/amd64`, `linux/arm64`
 
 **Also available:**
-- AI/Audio: [Kokoro TTS](https://github.com/hwdsl2/docker-kokoro), [LiteLLM](https://github.com/hwdsl2/docker-litellm)
+- AI/Audio: [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm)
 - VPN: [WireGuard](https://github.com/hwdsl2/docker-wireguard), [OpenVPN](https://github.com/hwdsl2/docker-openvpn), [IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server), [Headscale](https://github.com/hwdsl2/docker-headscale)
 
-**Tip:** Whisper, LiteLLM, and Kokoro TTS can be [used together](#using-with-other-ai-services) to build a complete voice AI pipeline on your own server.
+**Tip:** Whisper, Kokoro, Embeddings, and LiteLLM can be [used together](#using-with-other-ai-services) to build a complete, private AI stack on your own server.
 
 ## Quick start
 
@@ -184,8 +185,9 @@ Content-Type: multipart/form-data
 | `model` | string | ✅ | Pass `whisper-1` (value is accepted but the active model is always used). |
 | `language` | string | — | BCP-47 language code. Overrides `WHISPER_LANGUAGE` for this request. |
 | `prompt` | string | — | Optional text to guide the model's style or continue a previous segment. |
-| `response_format` | string | — | Output format. Default: `json`. See [response formats](#response-formats). |
+| `response_format` | string | — | Output format. Default: `json`. See [response formats](#response-formats). Ignored when `stream=true`. |
 | `temperature` | float | — | Sampling temperature (0–1). Default: `0`. |
+| `stream` | boolean | — | Enable SSE streaming. When `true`, segments are returned as `text/event-stream` events as they are decoded. Default: `false`. |
 
 **Example:**
 
@@ -214,6 +216,59 @@ curl http://your_server_ip:9000/v1/audio/transcriptions \
 | `verbose_json` | Full JSON with language, duration, per-segment timestamps, log-probabilities |
 | `srt` | SubRip subtitle format (`.srt`) |
 | `vtt` | WebVTT subtitle format (`.vtt`) |
+
+**Example — stream segments as they are decoded:**
+
+```bash
+curl http://your_server_ip:9000/v1/audio/transcriptions \
+    -F file=@long-audio.mp3 \
+    -F model=whisper-1 \
+    -F stream=true
+```
+
+**SSE response** (one event per segment, then a final `done` event):
+
+```
+data: {"type":"segment","start":0.0,"end":2.4,"text":"Hello, how are you?"}
+
+data: {"type":"segment","start":2.8,"end":5.1,"text":"I'm doing well, thank you."}
+
+data: {"type":"done","text":"Hello, how are you? I'm doing well, thank you."}
+```
+
+The first segment typically arrives within 1–3 seconds of upload. Each `segment` event includes `start`/`end` timestamps in seconds. The final `done` event contains the full assembled transcript, equivalent to the standard `json` response.
+
+**Example — stream from a browser using `fetch`:**
+
+```javascript
+const form = new FormData();
+form.append("file", audioBlob, "audio.webm");
+form.append("model", "whisper-1");
+form.append("stream", "true");
+
+const res = await fetch("http://your_server_ip:9000/v1/audio/transcriptions", {
+  method: "POST", body: form,
+});
+
+const reader = res.body.getReader();
+const decoder = new TextDecoder();
+let buffer = "";
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  buffer += decoder.decode(value, { stream: true });
+  // SSE frames are separated by "\n\n"; split and process complete frames
+  const frames = buffer.split("\n\n");
+  buffer = frames.pop(); // keep any incomplete trailing frame
+  for (const frame of frames) {
+    if (!frame.startsWith("data: ")) continue;
+    const event = JSON.parse(frame.slice(6));
+    if (event.type === "segment") console.log(event.text);
+    if (event.type === "done") console.log("Full text:", event.text);
+  }
+}
+```
 
 **Example — get SRT subtitles:**
 
@@ -362,6 +417,7 @@ server {
         proxy_set_header   X-Real-IP $remote_addr;
         proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;       # required for chunked streaming (SSE)
         proxy_read_timeout 300s;
     }
 }
@@ -394,21 +450,30 @@ Your downloaded models are preserved in the `whisper-data` volume.
 
 ## Using with other AI services
 
-The [Whisper](https://github.com/hwdsl2/docker-whisper), [LiteLLM](https://github.com/hwdsl2/docker-litellm), and [Kokoro TTS](https://github.com/hwdsl2/docker-kokoro) images can be combined to build a private, self-hosted voice AI assistant entirely on your own server, with no voice data sent to third parties.
+The [Whisper (STT)](https://github.com/hwdsl2/docker-whisper), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm), and [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro) images can be combined to build a complete, private AI stack on your own server — from voice I/O to RAG-powered question answering. Whisper, Kokoro, and Embeddings run fully locally. When using LiteLLM with local models only (e.g., Ollama), no data is sent to third parties. If you configure LiteLLM with external providers (e.g., OpenAI, Anthropic), your data will be sent to those providers.
 
 ```mermaid
 graph LR
+    D["📄 Documents"] -->|embed| E["Embeddings<br/>(text → vectors)"]
+    E -->|store| VDB["Vector DB<br/>(Qdrant, Chroma)"]
     A["🎤 Audio input"] -->|transcribe| W["Whisper<br/>(speech-to-text)"]
-    W -->|text| L["LiteLLM<br/>(AI gateway)"]
+    W -->|query| E
+    VDB -->|context| L["LiteLLM<br/>(AI gateway)"]
+    W -->|text| L
     L -->|response| T["Kokoro TTS<br/>(text-to-speech)"]
     T --> B["🔊 Audio output"]
 ```
 
-- **[Whisper](https://github.com/hwdsl2/docker-whisper)** — transcribes spoken audio to text (port `9000`)
-- **[LiteLLM](https://github.com/hwdsl2/docker-litellm)** — routes the text to an LLM and returns a response (port `4000`)
-- **[Kokoro TTS](https://github.com/hwdsl2/docker-kokoro)** — converts the response back to speech (port `8880`)
+| Service | Role | Default port |
+|---|---|---|
+| **[Embeddings](https://github.com/hwdsl2/docker-embeddings)** | Converts text to vectors for semantic search and RAG | `8000` |
+| **[Whisper (STT)](https://github.com/hwdsl2/docker-whisper)** | Transcribes spoken audio to text | `9000` |
+| **[LiteLLM](https://github.com/hwdsl2/docker-litellm)** | AI gateway — routes requests to OpenAI, Anthropic, Ollama, and 100+ other providers | `4000` |
+| **[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro)** | Converts text to natural-sounding speech | `8880` |
 
-Once all three containers are running, you can chain their APIs together:
+### Voice pipeline example
+
+Transcribe a spoken question, get an LLM response, and convert it to speech:
 
 ```bash
 # Step 1: Transcribe audio to text (Whisper)
@@ -427,6 +492,33 @@ curl -s http://localhost:8880/v1/audio/speech \
     -H "Content-Type: application/json" \
     -d "{\"model\":\"tts-1\",\"input\":\"$RESPONSE\",\"voice\":\"af_heart\"}" \
     --output response.mp3
+```
+
+### RAG pipeline example
+
+Embed documents for semantic search, then retrieve context and answer questions with an LLM:
+
+```bash
+# Step 1: Embed a document chunk and store the vector in your vector DB
+curl -s http://localhost:8000/v1/embeddings \
+    -H "Content-Type: application/json" \
+    -d '{"input": "Docker simplifies deployment by packaging apps in containers.", "model": "text-embedding-ada-002"}' \
+    | jq '.data[0].embedding'
+# → Store the returned vector alongside the source text in Qdrant, Chroma, pgvector, etc.
+
+# Step 2: At query time, embed the question, retrieve the top matching chunks from
+#          the vector DB, then send the question and retrieved context to LiteLLM.
+curl -s http://localhost:4000/v1/chat/completions \
+    -H "Authorization: Bearer <your-litellm-key>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "model": "gpt-4o",
+      "messages": [
+        {"role": "system", "content": "Answer using only the provided context."},
+        {"role": "user", "content": "What does Docker do?\n\nContext: Docker simplifies deployment by packaging apps in containers."}
+      ]
+    }' \
+    | jq -r '.choices[0].message.content'
 ```
 
 ## Technical details
