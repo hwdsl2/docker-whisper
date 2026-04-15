@@ -6,6 +6,8 @@
 
 A Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-text server, powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Provides an OpenAI-compatible audio transcription API. Based on Debian (python:3.12-slim). Designed to be simple, private, and self-hosted.
 
+**Features:**
+
 - OpenAI-compatible `POST /v1/audio/transcriptions` endpoint — any app using the OpenAI Whisper API switches with a one-line change
 - Supports all Whisper models: `tiny`, `base`, `small`, `medium`, `large-v3`, `large-v3-turbo` and more
 - Model management via a helper script (`whisper_manage`)
@@ -19,6 +21,7 @@ A Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-t
 - Multi-arch: `linux/amd64`, `linux/arm64`
 
 **Also available:**
+
 - AI/Audio: [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm)
 - VPN: [WireGuard](https://github.com/hwdsl2/docker-wireguard), [OpenVPN](https://github.com/hwdsl2/docker-openvpn), [IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server), [Headscale](https://github.com/hwdsl2/docker-headscale)
 

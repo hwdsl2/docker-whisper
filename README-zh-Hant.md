@@ -6,6 +6,8 @@
 
 使用 [faster-whisper](https://github.com/SYSTRAN/faster-whisper) 在 Docker 容器中執行 [Whisper](https://github.com/openai/whisper) 語音轉文字伺服器。提供 OpenAI 相容的音訊轉錄 API。基於 Debian (python:3.12-slim)，簡單、私密、可自架。
 
+**功能特性：**
+
 - OpenAI 相容的 `POST /v1/audio/transcriptions` 端點 — 任何呼叫 OpenAI Whisper API 的應用程式只需修改一行設定即可切換
 - 支援所有 Whisper 模型：`tiny`、`base`、`small`、`medium`、`large-v3`、`large-v3-turbo` 等
 - 透過輔助腳本 (`whisper_manage`) 管理模型
@@ -19,6 +21,7 @@
 - 多架構支援：`linux/amd64`、`linux/arm64`
 
 **另提供：**
+
 - AI/音訊：[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh-Hant.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)
 - VPN：[WireGuard](https://github.com/hwdsl2/docker-wireguard/blob/main/README-zh-Hant.md)、[OpenVPN](https://github.com/hwdsl2/docker-openvpn/blob/main/README-zh-Hant.md)、[IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server/blob/master/README-zh-Hant.md)、[Headscale](https://github.com/hwdsl2/docker-headscale/blob/main/README-zh-Hant.md)
 
