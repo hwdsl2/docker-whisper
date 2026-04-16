@@ -288,8 +288,8 @@ async def transcribe(
         default=0.0,
         description="Sampling temperature between 0 and 1.",
     ),
-    stream: bool = Form(
-        default=False,
+    stream: Optional[str] = Form(
+        default=None,
         description=(
             "Stream segments as Server-Sent Events (text/event-stream). "
             "When true, the response is a series of 'data:' frames — one per "
@@ -318,9 +318,13 @@ async def transcribe(
     if _model is None:
         raise HTTPException(status_code=503, detail="Model is not loaded yet. Please retry.")
 
+    # Normalise the stream form field: the string "true" (case-insensitive) enables streaming.
+    # Using Optional[str] instead of bool avoids Pydantic version-dependent coercion differences.
+    stream_flag: bool = stream is not None and stream.strip().lower() == "true"
+
     # Validate response_format (only relevant for non-streaming responses)
     valid_formats = {"json", "text", "verbose_json", "srt", "vtt"}
-    if not stream and response_format not in valid_formats:
+    if not stream_flag and response_format not in valid_formats:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid response_format '{response_format}'. "
@@ -356,14 +360,14 @@ async def transcribe(
 
     logger.info(
         "Transcribing '%s' (%d bytes) | lang=%s format=%s stream=%s",
-        original_name, len(content), lang or "auto", response_format, stream,
+        original_name, len(content), lang or "auto", response_format, stream_flag,
     )
 
     # ------------------------------------------------------------------
     # Streaming path — inference runs in a thread; temp file cleaned up
     # inside the generator when the stream ends or the client disconnects.
     # ------------------------------------------------------------------
-    if stream:
+    if stream_flag:
         return StreamingResponse(
             _stream_sse(tmp_path, lang, prompt, temperature),
             media_type="text/event-stream",
