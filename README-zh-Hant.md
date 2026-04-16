@@ -375,9 +375,11 @@ docker exec whisper whisper_manage --downloadmodel large-v3-turbo
 | `small.en` | ~465 MB | ~1.5 GB | 僅英語 |
 | `medium` | ~1.5 GB | ~5 GB | 高精確度 |
 | `medium.en` | ~1.5 GB | ~5 GB | 僅英語 |
+| `large-v1` | ~3 GB | ~10 GB | 舊版大型模型 |
 | `large-v2` | ~3 GB | ~10 GB | 非常高精確度 |
 | `large-v3` | ~3 GB | ~10 GB | 最高精確度 |
 | `large-v3-turbo` | ~1.6 GB | ~6 GB | 高速 + 高精確度 ⭐ |
+| `turbo` | ~1.6 GB | ~6 GB | `large-v3-turbo` 的別名 |
 
 > **提示：** `large-v3-turbo` 的精確度接近 `large-v3`，但資源消耗約為其一半。對於大多數正式部署，這是從 `base` 升級的推薦選擇。
 
@@ -530,7 +532,7 @@ curl -s http://localhost:4000/v1/chat/completions \
 - 執行時：Python 3（虛擬環境位於 `/opt/venv`）
 - STT 引擎：[faster-whisper](https://github.com/SYSTRAN/faster-whisper) + CTranslate2（預設 INT8）
 - API 框架：[FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/)
-- 音訊解碼：[ffmpeg](https://ffmpeg.org/)（來自 Debian 套件）
+- 音訊解碼：[PyAV](https://github.com/PyAV-Org/PyAV)（內建 FFmpeg 函式庫）
 - 資料目錄：`/var/lib/whisper`（Docker 資料卷）
 - 模型儲存：HuggingFace Hub 格式，存儲在資料卷中——下載一次，重啟後複用
 

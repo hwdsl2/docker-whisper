@@ -375,9 +375,11 @@ docker exec whisper whisper_manage --downloadmodel large-v3-turbo
 | `small.en` | ~465 MB | ~1.5 GB | 仅英语 |
 | `medium` | ~1.5 GB | ~5 GB | 高精度 |
 | `medium.en` | ~1.5 GB | ~5 GB | 仅英语 |
+| `large-v1` | ~3 GB | ~10 GB | 旧版大型模型 |
 | `large-v2` | ~3 GB | ~10 GB | 非常高精度 |
 | `large-v3` | ~3 GB | ~10 GB | 最高精度 |
 | `large-v3-turbo` | ~1.6 GB | ~6 GB | 高速 + 高精度 ⭐ |
+| `turbo` | ~1.6 GB | ~6 GB | `large-v3-turbo` 的别名 |
 
 > **提示：** `large-v3-turbo` 的精度接近 `large-v3`，但资源消耗约为其一半。对于大多数生产部署，这是从 `base` 升级的推荐选择。
 
@@ -530,7 +532,7 @@ curl -s http://localhost:4000/v1/chat/completions \
 - 运行时：Python 3（虚拟环境位于 `/opt/venv`）
 - STT 引擎：[faster-whisper](https://github.com/SYSTRAN/faster-whisper) + CTranslate2（默认 INT8）
 - API 框架：[FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/)
-- 音频解码：[ffmpeg](https://ffmpeg.org/)（来自 Debian 软件包）
+- 音频解码：[PyAV](https://github.com/PyAV-Org/PyAV)（内置 FFmpeg 库）
 - 数据目录：`/var/lib/whisper`（Docker 数据卷）
 - 模型存储：HuggingFace Hub 格式，存储在数据卷中——下载一次，重启后复用
 

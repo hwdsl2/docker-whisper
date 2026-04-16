@@ -375,9 +375,11 @@ To change the active model:
 | `small.en` | ~465 MB | ~1.5 GB | English-only |
 | `medium` | ~1.5 GB | ~5 GB | High accuracy |
 | `medium.en` | ~1.5 GB | ~5 GB | English-only |
+| `large-v1` | ~3 GB | ~10 GB | Older large model |
 | `large-v2` | ~3 GB | ~10 GB | Very high accuracy |
 | `large-v3` | ~3 GB | ~10 GB | Best accuracy |
 | `large-v3-turbo` | ~1.6 GB | ~6 GB | Fast + high accuracy ⭐ |
+| `turbo` | ~1.6 GB | ~6 GB | Alias for `large-v3-turbo` |
 
 > **Tip:** `large-v3-turbo` offers accuracy close to `large-v3` at roughly half the resource cost. It is the recommended upgrade path from `base` for most production deployments.
 
@@ -530,7 +532,7 @@ curl -s http://localhost:4000/v1/chat/completions \
 - Runtime: Python 3 (virtual environment at `/opt/venv`)
 - STT engine: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) with CTranslate2 (INT8 by default)
 - API framework: [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/)
-- Audio decoding: [ffmpeg](https://ffmpeg.org/) (installed from Debian package)
+- Audio decoding: [PyAV](https://github.com/PyAV-Org/PyAV) (bundled FFmpeg libraries)
 - Data directory: `/var/lib/whisper` (Docker volume)
 - Model storage: HuggingFace Hub format inside the volume — downloaded once, reused on restarts
 

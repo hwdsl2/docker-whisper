@@ -375,9 +375,11 @@ docker exec whisper whisper_manage --downloadmodel large-v3-turbo
 | `small.en` | ~465 МБ | ~1,5 ГБ | Только английский |
 | `medium` | ~1,5 ГБ | ~5 ГБ | Высокая точность |
 | `medium.en` | ~1,5 ГБ | ~5 ГБ | Только английский |
+| `large-v1` | ~3 ГБ | ~10 ГБ | Старая большая модель |
 | `large-v2` | ~3 ГБ | ~10 ГБ | Очень высокая точность |
 | `large-v3` | ~3 ГБ | ~10 ГБ | Наивысшая точность |
 | `large-v3-turbo` | ~1,6 ГБ | ~6 ГБ | Быстрая + высокая точность ⭐ |
+| `turbo` | ~1,6 ГБ | ~6 ГБ | Псевдоним для `large-v3-turbo` |
 
 > **Совет:** `large-v3-turbo` обеспечивает точность, близкую к `large-v3`, при вдвое меньшем потреблении ресурсов. Для большинства производственных развёртываний это рекомендуемый вариант обновления с `base`.
 
@@ -530,7 +532,7 @@ curl -s http://localhost:4000/v1/chat/completions \
 - Среда выполнения: Python 3 (виртуальное окружение в `/opt/venv`)
 - STT-движок: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) + CTranslate2 (INT8 по умолчанию)
 - API-фреймворк: [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/)
-- Декодирование аудио: [ffmpeg](https://ffmpeg.org/) (из пакета Debian)
+- Декодирование аудио: [PyAV](https://github.com/PyAV-Org/PyAV) (встроенные библиотеки FFmpeg)
 - Директория данных: `/var/lib/whisper` (Docker-том)
 - Хранение моделей: формат HuggingFace Hub внутри тома — скачивается один раз, переиспользуется при перезапусках
 
