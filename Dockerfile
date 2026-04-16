@@ -13,12 +13,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     TMPDIR="/run/whisper-temp"
 
-# ffmpeg is required by faster-whisper for audio decoding.
-# Note: ffmpeg from Debian repos is licensed under LGPL 2.1+/GPL 2+.
-# See: https://ffmpeg.org/legal.html
+# faster-whisper decodes audio via the PyAV library (bundled FFmpeg libraries).
+# curl is used by run.sh for the public-IP lookup and the health-check poll.
 RUN set -x \
     && apt-get update \
-    && apt-get install -y --no-install-recommends curl ffmpeg \
+    && apt-get install -y --no-install-recommends curl \
     && python3 -m venv /opt/venv \
     && pip install --no-cache-dir \
          faster-whisper \

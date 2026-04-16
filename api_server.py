@@ -415,17 +415,19 @@ async def transcribe(
         return JSONResponse({
             "task": "transcribe",
             "language": info.language,
+            "language_probability": round(info.language_probability, 4),
             "duration": round(info.duration, 3),
+            "duration_after_vad": round(info.duration_after_vad, 3),
             "text": full_text,
             "segments": [
                 {
                     "id": idx,
-                    "seek": 0,
+                    "seek": seg.seek,
                     "start": round(seg.start, 3),
                     "end": round(seg.end, 3),
                     "text": seg.text.strip(),
-                    "tokens": [],
-                    "temperature": temperature,
+                    "tokens": seg.tokens,
+                    "temperature": round(seg.temperature, 3) if seg.temperature is not None else temperature,
                     "avg_logprob": round(seg.avg_logprob, 4),
                     "compression_ratio": round(seg.compression_ratio, 4),
                     "no_speech_prob": round(seg.no_speech_prob, 4),

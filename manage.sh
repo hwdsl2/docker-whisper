@@ -36,7 +36,8 @@ Options:
   -h, --help                           show this help message and exit
 
 Available models: tiny, tiny.en, base, base.en, small, small.en,
-                  medium, medium.en, large-v2, large-v3, large-v3-turbo
+                  medium, medium.en, large-v1, large-v2, large-v3,
+                  large-v3-turbo (or: turbo)
 
 To switch the active model, set WHISPER_MODEL=<name> and restart the container.
 Use '--downloadmodel' to pre-download a model before switching, avoiding a
@@ -177,16 +178,19 @@ Available Whisper models:
   small.en          ~465 MB  ~1.5 GB        English-only variant
   medium            ~1.5 GB  ~5 GB          High accuracy
   medium.en         ~1.5 GB  ~5 GB          English-only variant
+  large-v1          ~3 GB    ~10 GB         Older large model
   large-v2          ~3 GB    ~10 GB         Very high accuracy
   large-v3          ~3 GB    ~10 GB         Best accuracy (recommended for quality)
   large-v3-turbo    ~1.6 GB  ~6 GB          Fast + high accuracy (best overall upgrade)
+  turbo             ~1.6 GB  ~6 GB          Alias for large-v3-turbo
 
 Notes:
   - English-only (.en) variants are slightly faster for English audio.
-  - large-v3-turbo is recommended over large-v3 for most use cases:
-    comparable accuracy with significantly lower resource usage.
-  - All models are downloaded from HuggingFace (Systran/faster-whisper-*)
-    and cached in the /var/lib/whisper Docker volume.
+  - large-v3-turbo (or: turbo) is recommended over large-v3 for most use
+    cases: comparable accuracy with significantly lower resource usage.
+  - Most models are downloaded from HuggingFace (Systran/faster-whisper-*);
+    large-v3-turbo/turbo use mobiuslabsgmbh/faster-whisper-large-v3-turbo.
+    All are cached in the /var/lib/whisper Docker volume.
   - INT8 quantization (default) reduces RAM usage by approximately 50%.
 
 Use '--downloadmodel <name>' to pre-download a model before switching.

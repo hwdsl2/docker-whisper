@@ -82,7 +82,7 @@ fi
 case "$WHISPER_MODEL" in
   tiny|tiny.en|base|base.en|small|small.en|medium|medium.en|\
   large-v1|large-v2|large-v3|large-v3-turbo|turbo) ;;
-  *) exiterr "WHISPER_MODEL '$WHISPER_MODEL' is not recognized. Valid options: tiny, base, small, medium, large-v2, large-v3, large-v3-turbo" ;;
+  *) exiterr "WHISPER_MODEL '$WHISPER_MODEL' is not recognized. Valid options: tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large-v1, large-v2, large-v3, large-v3-turbo, turbo" ;;
 esac
 
 # Validate device
@@ -169,8 +169,21 @@ if [ -n "$WHISPER_LOCAL_ONLY" ]; then
 fi
 
 if [ -z "$WHISPER_LOCAL_ONLY" ]; then
-  if [ ! -d "/var/lib/whisper/models--Systran--faster-whisper-${WHISPER_MODEL}" ] \
-    && [ ! -d "/var/lib/whisper/models--openai--whisper-${WHISPER_MODEL}" ]; then
+  # Determine the expected HuggingFace cache directory for the active model.
+  # large-v3-turbo and its alias 'turbo' are hosted under mobiuslabsgmbh on HF,
+  # not under Systran, so their cache directory name differs from other models.
+  _model_in_cache() {
+    local m="$1"
+    [ -d "/var/lib/whisper/models--Systran--faster-whisper-${m}" ] && return 0
+    [ -d "/var/lib/whisper/models--openai--whisper-${m}" ] && return 0
+    case "$m" in
+      large-v3-turbo|turbo)
+        [ -d "/var/lib/whisper/models--mobiuslabsgmbh--faster-whisper-large-v3-turbo" ] && return 0
+        ;;
+    esac
+    return 1
+  }
+  if ! _model_in_cache "$WHISPER_MODEL"; then
     echo
     echo "Note: Model '$WHISPER_MODEL' not found in cache. It will be downloaded"
     echo "      from HuggingFace on first start. This may take several minutes."
