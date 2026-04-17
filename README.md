@@ -4,7 +4,7 @@
 
 [![Build Status](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml/badge.svg)](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml) &nbsp;[![License: MIT](docs/images/license.svg)](https://opensource.org/licenses/MIT)
 
-A Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-text server, powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Provides an OpenAI-compatible audio transcription API. Based on Debian (python:3.12-slim). Designed to be simple, private, and self-hosted.
+Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-text server, powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Provides an OpenAI-compatible audio transcription API. Based on Debian (python:3.12-slim). Designed to be simple, private, and self-hosted.
 
 **Features:**
 
@@ -22,6 +22,7 @@ A Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-t
 
 **Also available:**
 
+- Without Docker: [Whisper install script](https://github.com/hwdsl2/whisper-install)
 - AI/Audio: [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm)
 - VPN: [WireGuard](https://github.com/hwdsl2/docker-wireguard), [OpenVPN](https://github.com/hwdsl2/docker-openvpn), [IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server), [Headscale](https://github.com/hwdsl2/docker-headscale)
 
@@ -40,7 +41,7 @@ docker run \
     -d hwdsl2/whisper-server
 ```
 
-**Note:** For internet-facing deployments, using a [reverse proxy](#using-a-reverse-proxy) to add HTTPS is **strongly recommended**. In that case, also replace `-p 9000:9000` with `-p 127.0.0.1:9000:9000` in the `docker run` command above, to prevent direct access to the unencrypted port.
+**Note:** For internet-facing deployments, using a [reverse proxy](#using-a-reverse-proxy) to add HTTPS is **strongly recommended**. In that case, also replace `-p 9000:9000` with `-p 127.0.0.1:9000:9000` in the `docker run` command above, to prevent direct access to the unencrypted port. Set `WHISPER_API_KEY` in your `env` file when the server is accessible from the public internet.
 
 The Whisper `base` model (~145 MB) is downloaded and cached on first start. Check the logs to confirm the server is ready:
 
@@ -60,6 +61,8 @@ curl http://your_server_ip:9000/v1/audio/transcriptions \
 ```json
 {"text": "Your transcribed text appears here."}
 ```
+
+Alternatively, you may [set up Whisper without Docker](https://github.com/hwdsl2/whisper-install). To learn more about how to use this image, read the sections below.
 
 ## Requirements
 
@@ -163,7 +166,7 @@ volumes:
   whisper-data:
 ```
 
-**Note:** For internet-facing deployments, using a [reverse proxy](#using-a-reverse-proxy) to add HTTPS is **strongly recommended**. In that case, also change `"9000:9000/tcp"` to `"127.0.0.1:9000:9000/tcp"` in `docker-compose.yml`, to prevent direct access to the unencrypted port.
+**Note:** For internet-facing deployments, using a [reverse proxy](#using-a-reverse-proxy) to add HTTPS is **strongly recommended**. In that case, also change `"9000:9000/tcp"` to `"127.0.0.1:9000:9000/tcp"` in `docker-compose.yml`, to prevent direct access to the unencrypted port. Set `WHISPER_API_KEY` in your `env` file when the server is accessible from the public internet.
 
 ## API reference
 

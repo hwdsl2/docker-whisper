@@ -22,6 +22,7 @@
 
 **另提供：**
 
+- 不使用 Docker：[Whisper 安装脚本](https://github.com/hwdsl2/whisper-install/blob/main/README-zh.md)
 - AI/音频：[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh.md)
 - VPN：[WireGuard](https://github.com/hwdsl2/docker-wireguard/blob/main/README-zh.md)、[OpenVPN](https://github.com/hwdsl2/docker-openvpn/blob/main/README-zh.md)、[IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server/blob/master/README-zh.md)、[Headscale](https://github.com/hwdsl2/docker-headscale/blob/main/README-zh.md)
 
@@ -40,7 +41,7 @@ docker run \
     -d hwdsl2/whisper-server
 ```
 
-**注：** 如需面向互联网的部署，**强烈建议**使用[反向代理](#使用反向代理)来添加 HTTPS。此时，还应将上述 `docker run` 命令中的 `-p 9000:9000` 替换为 `-p 127.0.0.1:9000:9000`，以防止从外部直接访问未加密端口。
+**注：** 如需面向互联网的部署，**强烈建议**使用[反向代理](#使用反向代理)来添加 HTTPS。此时，还应将上述 `docker run` 命令中的 `-p 9000:9000` 替换为 `-p 127.0.0.1:9000:9000`，以防止从外部直接访问未加密端口。当服务器可从公网访问时，请在 `env` 文件中设置 `WHISPER_API_KEY`。
 
 首次启动时，Whisper `base` 模型（约 145 MB）将自动下载并缓存。查看日志确认服务器已就绪：
 
@@ -60,6 +61,8 @@ curl http://您的服务器IP:9000/v1/audio/transcriptions \
 ```json
 {"text": "转录的文字内容显示在这里。"}
 ```
+
+另外，你也可以在不使用 Docker 的情况下[安装 Whisper](https://github.com/hwdsl2/whisper-install/blob/main/README-zh.md)。如需了解更多关于此镜像的使用方法，请阅读以下各节。
 
 ## 系统要求
 
@@ -163,7 +166,7 @@ volumes:
   whisper-data:
 ```
 
-**注：** 如需面向公网部署，强烈建议使用[反向代理](#使用反向代理)启用 HTTPS。此时请将 `docker-compose.yml` 中的 `"9000:9000/tcp"` 改为 `"127.0.0.1:9000:9000/tcp"`，以防止未加密端口被直接访问。
+**注：** 如需面向公网部署，强烈建议使用[反向代理](#使用反向代理)启用 HTTPS。此时请将 `docker-compose.yml` 中的 `"9000:9000/tcp"` 改为 `"127.0.0.1:9000:9000/tcp"`，以防止未加密端口被直接访问。当服务器可从公网访问时，请在 `env` 文件中设置 `WHISPER_API_KEY`。
 
 ## API 参考
 
