@@ -23,10 +23,20 @@ Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-tex
 **Also available:**
 
 - Without Docker: [Whisper install script](https://github.com/hwdsl2/whisper-install)
-- AI/Audio: [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm)
+- AI/Audio: [WhisperLive (real-time STT)](https://github.com/hwdsl2/docker-whisper-live), [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm)
 - VPN: [WireGuard](https://github.com/hwdsl2/docker-wireguard), [OpenVPN](https://github.com/hwdsl2/docker-openvpn), [IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server), [Headscale](https://github.com/hwdsl2/docker-headscale)
 
-**Tip:** Whisper, Kokoro, Embeddings, and LiteLLM can be [used together](#using-with-other-ai-services) to build a complete, private AI stack on your own server.
+**Tip:** WhisperLive, Whisper, Kokoro, Embeddings, and LiteLLM can be [used together](#using-with-other-ai-services) to build a complete, private AI stack on your own server.
+
+## When to use Whisper vs. WhisperLive
+
+| | **docker-whisper** | [docker-whisper-live](https://github.com/hwdsl2/docker-whisper-live) |
+|---|---|---|
+| **Use case** | Transcribe complete audio files | Live microphone / real-time audio streaming |
+| **Protocol** | HTTP REST | WebSocket (streaming) + HTTP REST |
+| **Latency** | Full file, then response | Near-real-time, word by word |
+| **Best for** | Meeting recordings, uploaded audio | Browser capture, RTSP streams, live captions |
+| **Image size** | ~180 MB | ~800 MB (includes PyTorch for VAD) |
 
 ## Quick start
 
@@ -328,6 +338,8 @@ All server data is stored in the Docker volume (`/var/lib/whisper` inside the co
 
 Back up the Docker volume to preserve downloaded models. Models are large (145 MB – 3 GB) and can take several minutes to download on first start; preserving the volume avoids re-downloading on container recreation.
 
+**Tip:** The `/var/lib/whisper` volume uses the same HuggingFace cache layout as `docker-whisper-live`'s `/var/lib/whisper-live` volume. If you have already downloaded a model with `docker-whisper-live`, you can bind-mount the same volume directory to avoid re-downloading.
+
 ## Managing the server
 
 Use `whisper_manage` inside the running container to inspect and manage the server.
@@ -474,6 +486,7 @@ graph LR
 
 | Service | Role | Default port |
 |---|---|---|
+| **[WhisperLive (real-time STT)](https://github.com/hwdsl2/docker-whisper-live)** | Real-time WebSocket streaming transcription for live audio | `9090` (WS), `8000` (REST) |
 | **[Embeddings](https://github.com/hwdsl2/docker-embeddings)** | Converts text to vectors for semantic search and RAG | `8000` |
 | **[Whisper (STT)](https://github.com/hwdsl2/docker-whisper)** | Transcribes spoken audio to text | `9000` |
 | **[LiteLLM](https://github.com/hwdsl2/docker-litellm)** | AI gateway — routes requests to OpenAI, Anthropic, Ollama, and 100+ other providers | `4000` |

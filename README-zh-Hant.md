@@ -23,10 +23,20 @@
 **另提供：**
 
 - 不使用 Docker：[Whisper 安裝腳本](https://github.com/hwdsl2/whisper-install/blob/main/README-zh-Hant.md)
-- AI/音訊：[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh-Hant.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)
+- AI/音訊：[WhisperLive（即時 STT）](https://github.com/hwdsl2/docker-whisper-live/blob/main/README-zh-Hant.md)、[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh-Hant.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)
 - VPN：[WireGuard](https://github.com/hwdsl2/docker-wireguard/blob/main/README-zh-Hant.md)、[OpenVPN](https://github.com/hwdsl2/docker-openvpn/blob/main/README-zh-Hant.md)、[IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server/blob/master/README-zh-Hant.md)、[Headscale](https://github.com/hwdsl2/docker-headscale/blob/main/README-zh-Hant.md)
 
-**提示：** Whisper、Kokoro、Embeddings 和 LiteLLM 可以[搭配使用](#與其他-ai-服務搭配使用)，在您自己的伺服器上建立完整的私密 AI 系統。
+**提示：** WhisperLive、Whisper、Kokoro、Embeddings 和 LiteLLM 可以[搭配使用](#與其他-ai-服務搭配使用)，在您自己的伺服器上建立完整的私密 AI 系統。
+
+## Whisper 與 WhisperLive 的選擇
+
+| | **docker-whisper** | [docker-whisper-live](https://github.com/hwdsl2/docker-whisper-live/blob/main/README-zh-Hant.md) |
+|---|---|---|
+| **使用情境** | 轉錄完整音訊檔案 | 即時麥克風/音訊串流 |
+| **協定** | HTTP REST | WebSocket（串流）+ HTTP REST |
+| **延遲** | 完整檔案處理後回傳結果 | 近即時，逐字輸出 |
+| **適合** | 會議錄音、上傳的音訊檔案 | 瀏覽器擷取、RTSP 串流、即時字幕 |
+| **映像大小** | ~180 MB | ~800 MB（包含用於 VAD 的 PyTorch） |
 
 ## 快速開始
 
@@ -328,6 +338,8 @@ http://您的伺服器IP:9000/docs
 
 請備份 Docker 資料卷以保留已下載的模型。模型檔案較大（145 MB – 3 GB），首次啟動時下載可能需要數分鐘；保留資料卷可避免在重建容器時重新下載。
 
+**提示：** `/var/lib/whisper` 資料卷與 `docker-whisper-live` 的 `/var/lib/whisper-live` 資料卷使用相同的 HuggingFace 快取配置。如果已透過 `docker-whisper-live` 下載了模型，可繫結掛載相同的資料卷目錄以避免重複下載。
+
 ## 管理伺服器
 
 在執行中的容器內使用 `whisper_manage` 來查看和管理伺服器。
@@ -474,6 +486,7 @@ graph LR
 
 | 服務 | 功能 | 預設連接埠 |
 |---|---|---|
+| **[WhisperLive（即時 STT）](https://github.com/hwdsl2/docker-whisper-live/blob/main/README-zh-Hant.md)** | 即時 WebSocket 串流轉錄 | `9090`（WS）、`8000`（REST） |
 | **[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh-Hant.md)** | 將文字轉換為向量，用於語意搜尋和 RAG | `8000` |
 | **[Whisper (STT)](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh-Hant.md)** | 將語音音訊轉錄為文字 | `9000` |
 | **[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)** | AI 閘道——將請求路由至 OpenAI、Anthropic、Ollama 及 100+ 其他提供商 | `4000` |

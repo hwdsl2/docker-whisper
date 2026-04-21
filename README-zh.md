@@ -23,10 +23,20 @@
 **另提供：**
 
 - 不使用 Docker：[Whisper 安装脚本](https://github.com/hwdsl2/whisper-install/blob/main/README-zh.md)
-- AI/音频：[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh.md)
+- AI/音频：[WhisperLive（实时 STT）](https://github.com/hwdsl2/docker-whisper-live/blob/main/README-zh.md)、[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh.md)
 - VPN：[WireGuard](https://github.com/hwdsl2/docker-wireguard/blob/main/README-zh.md)、[OpenVPN](https://github.com/hwdsl2/docker-openvpn/blob/main/README-zh.md)、[IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server/blob/master/README-zh.md)、[Headscale](https://github.com/hwdsl2/docker-headscale/blob/main/README-zh.md)
 
-**提示：** Whisper、Kokoro、Embeddings 和 LiteLLM 可以[配合使用](#与其他-ai-服务配合使用)，在您自己的服务器上搭建完整的私密 AI 系统。
+**提示：** WhisperLive、Whisper、Kokoro、Embeddings 和 LiteLLM 可以[配合使用](#与其他-ai-服务配合使用)，在您自己的服务器上搭建完整的私密 AI 系统。
+
+## Whisper 与 WhisperLive 的选择
+
+| | **docker-whisper** | [docker-whisper-live](https://github.com/hwdsl2/docker-whisper-live/blob/main/README-zh.md) |
+|---|---|---|
+| **使用场景** | 转录完整音频文件 | 实时麦克风/音频流 |
+| **协议** | HTTP REST | WebSocket（流式）+ HTTP REST |
+| **延迟** | 完整文件处理后返回结果 | 近实时，逐词输出 |
+| **适合** | 会议录音、上传的音频文件 | 浏览器采集、RTSP 流、实时字幕 |
+| **镜像大小** | ~180 MB | ~800 MB（包含用于 VAD 的 PyTorch） |
 
 ## 快速开始
 
@@ -328,6 +338,8 @@ http://您的服务器IP:9000/docs
 
 请备份 Docker 数据卷以保留已下载的模型。模型文件较大（145 MB – 3 GB），首次启动时下载可能需要数分钟；保留数据卷可避免在重建容器时重新下载。
 
+**提示：** `/var/lib/whisper` 数据卷与 `docker-whisper-live` 的 `/var/lib/whisper-live` 数据卷使用相同的 HuggingFace 缓存布局。如果已通过 `docker-whisper-live` 下载了模型，可绑定挂载相同的数据卷目录以避免重复下载。
+
 ## 管理服务器
 
 在运行中的容器内使用 `whisper_manage` 来查看和管理服务器。
@@ -474,6 +486,7 @@ graph LR
 
 | 服务 | 功能 | 默认端口 |
 |---|---|---|
+| **[WhisperLive（实时 STT）](https://github.com/hwdsl2/docker-whisper-live/blob/main/README-zh.md)** | 实时 WebSocket 流式转录 | `9090`（WS）、`8000`（REST） |
 | **[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh.md)** | 将文本转换为向量，用于语义搜索和 RAG | `8000` |
 | **[Whisper (STT)](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh.md)** | 将语音音频转录为文本 | `9000` |
 | **[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh.md)** | AI 网关——将请求路由至 OpenAI、Anthropic、Ollama 及 100+ 其他提供商 | `4000` |
