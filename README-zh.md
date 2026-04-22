@@ -26,7 +26,7 @@
 - AI/音频：[WhisperLive（实时 STT）](https://github.com/hwdsl2/docker-whisper-live/blob/main/README-zh.md)、[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh.md)
 - VPN：[WireGuard](https://github.com/hwdsl2/docker-wireguard/blob/main/README-zh.md)、[OpenVPN](https://github.com/hwdsl2/docker-openvpn/blob/main/README-zh.md)、[IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server/blob/master/README-zh.md)、[Headscale](https://github.com/hwdsl2/docker-headscale/blob/main/README-zh.md)
 
-**提示：** WhisperLive、Whisper、Kokoro、Embeddings 和 LiteLLM 可以[配合使用](#与其他-ai-服务配合使用)，在您自己的服务器上搭建完整的私密 AI 系统。
+**提示：** Whisper、Kokoro、Embeddings 和 LiteLLM 可以[配合使用](#与其他-ai-服务配合使用)，在您自己的服务器上搭建完整的私密 AI 系统。
 
 ## Whisper 与 WhisperLive 的选择
 
@@ -36,7 +36,7 @@
 | **协议** | HTTP REST | WebSocket（流式）+ HTTP REST |
 | **延迟** | 完整文件处理后返回结果 | 近实时，逐词输出 |
 | **适合** | 会议录音、上传的音频文件 | 浏览器采集、RTSP 流、实时字幕 |
-| **镜像大小** | ~180 MB | ~800 MB（包含用于 VAD 的 PyTorch） |
+| **镜像大小** | ~180 MB | ~730 MB（包含用于 VAD 的 PyTorch） |
 
 ## 快速开始
 
@@ -50,6 +50,8 @@ docker run \
     -p 9000:9000 \
     -d hwdsl2/whisper-server
 ```
+
+**重要：** 此镜像运行默认 `base` 模型需要至少 700 MB 可用内存。内存为 512 MB 或更少的系统不受支持。
 
 **注：** 如需面向互联网的部署，**强烈建议**使用[反向代理](#使用反向代理)来添加 HTTPS。此时，还应将上述 `docker run` 命令中的 `-p 9000:9000` 替换为 `-p 127.0.0.1:9000:9000`，以防止从外部直接访问未加密端口。当服务器可从公网访问时，请在 `env` 文件中设置 `WHISPER_API_KEY`。
 
@@ -78,7 +80,7 @@ curl http://您的服务器IP:9000/v1/audio/transcriptions \
 
 - 已安装 Docker 的 Linux 服务器（本地或云端）
 - 支持的架构：`amd64`（x86_64）、`arm64`（例如 Raspberry Pi 4/5、AWS Graviton）
-- 最低内存：默认 `base` 模型约需 500 MB 可用内存（请参阅[模型列表](#切换模型)）
+- 最低内存：默认 `base` 模型约需 700 MB 可用内存（请参阅[模型列表](#切换模型)）
 - 首次启动需要访问互联网以下载模型（之后模型将缓存在本地）。使用预先缓存的模型并设置 `WHISPER_LOCAL_ONLY=true` 时不需要网络访问。
 
 如需面向公网部署，请参阅[使用反向代理](#使用反向代理)以启用 HTTPS。
@@ -384,8 +386,8 @@ docker exec whisper whisper_manage --downloadmodel large-v3-turbo
 |---|---|---|---|
 | `tiny` | ~75 MB | ~250 MB | 最快；精度较低 |
 | `tiny.en` | ~75 MB | ~250 MB | 仅英语 |
-| `base` | ~145 MB | ~500 MB | 良好平衡 — **默认** |
-| `base.en` | ~145 MB | ~500 MB | 仅英语 |
+| `base` | ~145 MB | ~700 MB | 良好平衡 — **默认** |
+| `base.en` | ~145 MB | ~700 MB | 仅英语 |
 | `small` | ~465 MB | ~1.5 GB | 更高精度 |
 | `small.en` | ~465 MB | ~1.5 GB | 仅英语 |
 | `medium` | ~1.5 GB | ~5 GB | 高精度 |
@@ -470,7 +472,7 @@ docker rm -f whisper
 
 ## 与其他 AI 服务配合使用
 
-[Whisper (STT)](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh.md) 和 [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh.md) 镜像可以组合使用，在您自己的服务器上搭建完整的私密 AI 系统——从语音输入/输出到检索增强生成（RAG）。Whisper、Kokoro 和 Embeddings 完全在本地运行。当 LiteLLM 仅使用本地模型（例如 Ollama）时，数据不会发送给第三方。如果您将 LiteLLM 配置为使用外部提供商（例如 OpenAI、Anthropic），您的数据将被发送至这些提供商处理。
+[Whisper (STT)](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh.md) 和 [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh.md) 镜像可以组合使用，在您自己的服务器上搭建完整的私密 AI 系统——从语音输入/输出到检索增强生成（RAG）。所有这些服务均完全在本地运行。当使用 LiteLLM 连接外部提供商（如 OpenAI、Anthropic）时，您的数据将发送给这些提供商。
 
 ```mermaid
 graph LR
@@ -486,9 +488,8 @@ graph LR
 
 | 服务 | 功能 | 默认端口 |
 |---|---|---|
-| **[WhisperLive（实时 STT）](https://github.com/hwdsl2/docker-whisper-live/blob/main/README-zh.md)** | 实时 WebSocket 流式转录 | `9090`（WS）、`8000`（REST） |
+| **[Whisper (STT)](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh.md)** | 通过 REST API 转录完整音频文件 | `9000` |
 | **[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh.md)** | 将文本转换为向量，用于语义搜索和 RAG | `8000` |
-| **[Whisper (STT)](https://github.com/hwdsl2/docker-whisper/blob/main/README-zh.md)** | 将语音音频转录为文本 | `9000` |
 | **[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh.md)** | AI 网关——将请求路由至 OpenAI、Anthropic、Ollama 及 100+ 其他提供商 | `4000` |
 | **[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh.md)** | 将文本转换为自然语音 | `8880` |
 

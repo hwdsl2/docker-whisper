@@ -26,7 +26,7 @@ Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-tex
 - AI/Audio: [WhisperLive (real-time STT)](https://github.com/hwdsl2/docker-whisper-live), [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm)
 - VPN: [WireGuard](https://github.com/hwdsl2/docker-wireguard), [OpenVPN](https://github.com/hwdsl2/docker-openvpn), [IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server), [Headscale](https://github.com/hwdsl2/docker-headscale)
 
-**Tip:** WhisperLive, Whisper, Kokoro, Embeddings, and LiteLLM can be [used together](#using-with-other-ai-services) to build a complete, private AI stack on your own server.
+**Tip:** Whisper, Kokoro, Embeddings, and LiteLLM can be [used together](#using-with-other-ai-services) to build a complete, private AI stack on your own server.
 
 ## When to use Whisper vs. WhisperLive
 
@@ -36,7 +36,7 @@ Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-tex
 | **Protocol** | HTTP REST | WebSocket (streaming) + HTTP REST |
 | **Latency** | Full file, then response | Near-real-time, word by word |
 | **Best for** | Meeting recordings, uploaded audio | Browser capture, RTSP streams, live captions |
-| **Image size** | ~180 MB | ~800 MB (includes PyTorch for VAD) |
+| **Image size** | ~180 MB | ~730 MB (includes PyTorch for VAD) |
 
 ## Quick start
 
@@ -50,6 +50,8 @@ docker run \
     -p 9000:9000 \
     -d hwdsl2/whisper-server
 ```
+
+**Important:** This image requires at least 700 MB of available RAM for the default `base` model. Systems with 512 MB or less of RAM are not supported.
 
 **Note:** For internet-facing deployments, using a [reverse proxy](#using-a-reverse-proxy) to add HTTPS is **strongly recommended**. In that case, also replace `-p 9000:9000` with `-p 127.0.0.1:9000:9000` in the `docker run` command above, to prevent direct access to the unencrypted port. Set `WHISPER_API_KEY` in your `env` file when the server is accessible from the public internet.
 
@@ -78,7 +80,7 @@ Alternatively, you may [set up Whisper without Docker](https://github.com/hwdsl2
 
 - A Linux server (local or cloud) with Docker installed
 - Supported architectures: `amd64` (x86_64), `arm64` (e.g. Raspberry Pi 4/5, AWS Graviton)
-- Minimum RAM: ~500 MB free for the default `base` model (see [model table](#switching-models))
+- Minimum RAM: ~700 MB free for the default `base` model (see [model table](#switching-models))
 - Internet access for the initial model download (the model is cached locally afterwards). Not required if using `WHISPER_LOCAL_ONLY=true` with pre-cached models.
 
 For internet-facing deployments, see [Using a reverse proxy](#using-a-reverse-proxy) to add HTTPS.
@@ -384,8 +386,8 @@ To change the active model:
 |---|---|---|---|
 | `tiny` | ~75 MB | ~250 MB | Fastest; lower accuracy |
 | `tiny.en` | ~75 MB | ~250 MB | English-only |
-| `base` | ~145 MB | ~500 MB | Good balance — **default** |
-| `base.en` | ~145 MB | ~500 MB | English-only |
+| `base` | ~145 MB | ~700 MB | Good balance — **default** |
+| `base.en` | ~145 MB | ~700 MB | English-only |
 | `small` | ~465 MB | ~1.5 GB | Better accuracy |
 | `small.en` | ~465 MB | ~1.5 GB | English-only |
 | `medium` | ~1.5 GB | ~5 GB | High accuracy |
@@ -470,7 +472,7 @@ Your downloaded models are preserved in the `whisper-data` volume.
 
 ## Using with other AI services
 
-The [Whisper (STT)](https://github.com/hwdsl2/docker-whisper), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm), and [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro) images can be combined to build a complete, private AI stack on your own server — from voice I/O to RAG-powered question answering. Whisper, Kokoro, and Embeddings run fully locally. When using LiteLLM with local models only (e.g., Ollama), no data is sent to third parties. If you configure LiteLLM with external providers (e.g., OpenAI, Anthropic), your data will be sent to those providers.
+The [Whisper (STT)](https://github.com/hwdsl2/docker-whisper), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm), and [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro) images can be combined to build a complete, private AI stack on your own server — from voice I/O to RAG-powered question answering. All these services run fully locally. When using LiteLLM with external providers (e.g., OpenAI, Anthropic), your data will be sent to those providers.
 
 ```mermaid
 graph LR
@@ -486,9 +488,8 @@ graph LR
 
 | Service | Role | Default port |
 |---|---|---|
-| **[WhisperLive (real-time STT)](https://github.com/hwdsl2/docker-whisper-live)** | Real-time WebSocket streaming transcription for live audio | `9090` (WS), `8000` (REST) |
+| **[Whisper (STT)](https://github.com/hwdsl2/docker-whisper)** | Transcribes complete audio files via REST API | `9000` |
 | **[Embeddings](https://github.com/hwdsl2/docker-embeddings)** | Converts text to vectors for semantic search and RAG | `8000` |
-| **[Whisper (STT)](https://github.com/hwdsl2/docker-whisper)** | Transcribes spoken audio to text | `9000` |
 | **[LiteLLM](https://github.com/hwdsl2/docker-litellm)** | AI gateway — routes requests to OpenAI, Anthropic, Ollama, and 100+ other providers | `4000` |
 | **[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro)** | Converts text to natural-sounding speech | `8880` |
 
