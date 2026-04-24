@@ -11,15 +11,34 @@ jobs:
     secrets:
       CACHE_NAME: ${{ secrets.CACHE_NAME }}
 
+  check_update_cuda:
+    if: github.repository_owner == 'hwdsl2'
+    uses: ./.github/workflows/check_update_cuda.yml
+    secrets:
+      CACHE_NAME: ${{ secrets.CACHE_NAME }}
+
   whisper_test:
-    needs: check_update
-    if: needs.check_update.outputs.should_test == 'true'
+    needs: [check_update, check_update_cuda]
+    if: |
+      needs.check_update.outputs.should_test == 'true'
+      || needs.check_update_cuda.outputs.should_test == 'true'
     uses: ./.github/workflows/whisper_test.yml
 
   buildx:
     needs: [check_update, whisper_test]
     if: needs.check_update.outputs.should_update == 'true'
     uses: ./.github/workflows/buildx.yml
+    secrets:
+      CACHE_NAME: ${{ secrets.CACHE_NAME }}
+      DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+      QUAY_USER: ${{ secrets.QUAY_USER }}
+      QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+      BUILD_ONLY: ${{ secrets.BUILD_ONLY }}
+
+  buildx-cuda:
+    needs: [check_update_cuda, whisper_test]
+    if: needs.check_update_cuda.outputs.should_update == 'true'
+    uses: ./.github/workflows/buildx-cuda.yml
     secrets:
       CACHE_NAME: ${{ secrets.CACHE_NAME }}
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
