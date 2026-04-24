@@ -1,0 +1,20 @@
+services:
+  whisper:
+    image: hwdsl2/whisper-server:cuda
+    container_name: whisper
+    restart: always
+    ports:
+      - "9000:9000/tcp"  # For a host-based reverse proxy, change to "127.0.0.1:9000:9000/tcp"
+    volumes:
+      - whisper-data:/var/lib/whisper
+      - ./whisper.env:/whisper.env:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  whisper-data:

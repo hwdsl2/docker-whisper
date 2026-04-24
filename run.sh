@@ -63,6 +63,10 @@ WHISPER_BEAM=$(noquotes "$WHISPER_BEAM")
 WHISPER_LOCAL_ONLY=$(nospaces "$WHISPER_LOCAL_ONLY")
 WHISPER_LOCAL_ONLY=$(noquotes "$WHISPER_LOCAL_ONLY")
 
+# Save whether the user explicitly set WHISPER_COMPUTE_TYPE (used below
+# to auto-select float16 for CUDA when no explicit type was provided).
+_USER_COMPUTE_TYPE="$WHISPER_COMPUTE_TYPE"
+
 # Apply defaults
 [ -z "$WHISPER_MODEL" ]        && WHISPER_MODEL=base
 [ -z "$WHISPER_LANGUAGE" ]     && WHISPER_LANGUAGE=auto
@@ -87,14 +91,27 @@ esac
 
 # Validate device
 case "$WHISPER_DEVICE" in
-  cpu) ;;
-  *) exiterr "WHISPER_DEVICE must be: cpu." ;;
+  cpu|cuda) ;;
+  auto)
+    # Auto-detect: use CUDA if an NVIDIA GPU is available, otherwise fall back to CPU
+    if [ -e /dev/nvidia0 ] || nvidia-smi >/dev/null 2>&1; then
+      WHISPER_DEVICE=cuda
+    else
+      WHISPER_DEVICE=cpu
+    fi
+    ;;
+  *) exiterr "WHISPER_DEVICE must be one of: cpu, cuda, auto." ;;
 esac
+
+# Adjust default compute type for CUDA (float16 is optimal on GPU)
+if [ "$WHISPER_DEVICE" = "cuda" ] && [ -z "$_USER_COMPUTE_TYPE" ]; then
+  WHISPER_COMPUTE_TYPE=float16
+fi
 
 # Validate compute type
 case "$WHISPER_COMPUTE_TYPE" in
-  int8|int8_float16|int8_float32|int8_bfloat16|int16|float32|bfloat16) ;;
-  *) exiterr "WHISPER_COMPUTE_TYPE '$WHISPER_COMPUTE_TYPE' is not valid. Use: int8, int8_float16, float32, etc." ;;
+  int8|int8_float16|int8_float32|int8_bfloat16|int16|float16|float32|bfloat16) ;;
+  *) exiterr "WHISPER_COMPUTE_TYPE '$WHISPER_COMPUTE_TYPE' is not valid. Use: int8, float16, float32, etc." ;;
 esac
 
 # Validate log level
