@@ -15,6 +15,7 @@
 - 支持所有主流音频格式（mp3、m4a、wav、webm、ogg、flac 及 ffmpeg 支持的所有格式）
 - 多种响应格式：JSON、纯文本、详细 JSON、SRT 字幕、WebVTT 字幕
 - 流式转录 — 添加 `stream=true` 参数，即可通过 SSE 在解码时逐段接收转录结果，无需等待整个文件处理完成
+- NVIDIA GPU (CUDA) 加速推理（使用 `:cuda` 镜像标签）
 - 离线/隔离网络模式 — 使用预先缓存的模型无需互联网访问 (`WHISPER_LOCAL_ONLY`)
 - 通过 [GitHub Actions](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml) 自动构建和发布
 - 通过 Docker 数据卷持久化模型缓存
@@ -36,7 +37,7 @@
 | **协议** | HTTP REST | WebSocket（流式）+ HTTP REST |
 | **延迟** | 完整文件处理后返回结果 | 近实时，逐词输出 |
 | **适合** | 会议录音、上传的音频文件 | 浏览器采集、RTSP 流、实时字幕 |
-| **镜像大小** | ~180 MB | ~730 MB（包含用于 VAD 的 PyTorch） |
+| **镜像大小** | ~180 MB（`:cuda` 约 3 GB） | ~730 MB（`:cuda` 约 4.5 GB） |
 
 ## 快速开始
 
@@ -50,6 +51,25 @@ docker run \
     -p 9000:9000 \
     -d hwdsl2/whisper-server
 ```
+
+<details>
+<summary><strong>GPU 快速开始（NVIDIA CUDA）</strong></summary>
+
+如果您有 NVIDIA GPU，可使用 `:cuda` 镜像进行硬件加速推理：
+
+```bash
+docker run \
+    --name whisper \
+    --restart=always \
+    --gpus=all \
+    -v whisper-data:/var/lib/whisper \
+    -p 9000:9000 \
+    -d hwdsl2/whisper-server:cuda
+```
+
+**要求：** NVIDIA GPU、[NVIDIA 驱动](https://www.nvidia.com/en-us/drivers/) 535+，以及主机上已安装 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)。`:cuda` 镜像仅支持 `linux/amd64`。
+
+</details>
 
 **重要：** 此镜像运行默认 `base` 模型需要至少 700 MB 可用内存。内存为 512 MB 或更少的系统不受支持。
 
@@ -83,6 +103,13 @@ curl http://您的服务器IP:9000/v1/audio/transcriptions \
 - 最低内存：默认 `base` 模型约需 700 MB 可用内存（请参阅[模型列表](#切换模型)）
 - 首次启动需要访问互联网以下载模型（之后模型将缓存在本地）。使用预先缓存的模型并设置 `WHISPER_LOCAL_ONLY=true` 时不需要网络访问。
 
+**GPU 加速（`:cuda` 镜像）要求：**
+
+- 支持 CUDA 的 NVIDIA GPU（计算能力 6.0+）
+- 主机已安装 [NVIDIA 驱动](https://www.nvidia.com/en-us/drivers/) 535 或更高版本
+- 已安装 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+- `:cuda` 镜像仅支持 `linux/amd64`
+
 如需面向公网部署，请参阅[使用反向代理](#使用反向代理)以启用 HTTPS。
 
 ## 下载
@@ -93,6 +120,12 @@ curl http://您的服务器IP:9000/v1/audio/transcriptions \
 docker pull hwdsl2/whisper-server
 ```
 
+如需 NVIDIA GPU 加速，请拉取 `:cuda` 标签：
+
+```bash
+docker pull hwdsl2/whisper-server:cuda
+```
+
 也可从 [Quay.io](https://quay.io/repository/hwdsl2/whisper-server) 下载：
 
 ```bash
@@ -100,7 +133,7 @@ docker pull quay.io/hwdsl2/whisper-server
 docker image tag quay.io/hwdsl2/whisper-server hwdsl2/whisper-server
 ```
 
-支持平台：`linux/amd64` 和 `linux/arm64`。
+支持平台：`linux/amd64` 和 `linux/arm64`。`:cuda` 标签仅支持 `linux/amd64`。
 
 ## 环境变量
 
@@ -113,8 +146,8 @@ docker image tag quay.io/hwdsl2/whisper-server hwdsl2/whisper-server
 | `WHISPER_MODEL` | 使用的 Whisper 模型。请参阅[模型列表](#切换模型)。 | `base` |
 | `WHISPER_LANGUAGE` | 默认转录语言。使用 BCP-47 语言代码（如 `zh`、`en`、`ja`）或 `auto` 自动检测。 | `auto` |
 | `WHISPER_PORT` | API 的 HTTP 端口（1–65535）。 | `9000` |
-| `WHISPER_DEVICE` | 推理使用的计算设备。 | `cpu` |
-| `WHISPER_COMPUTE_TYPE` | 量化 / 计算类型。推荐使用 `int8`。 | `int8` |
+| `WHISPER_DEVICE` | 计算设备：`cpu`、`cuda` 或 `auto`。使用 `:cuda` 镜像时设为 `cuda` 以启用 GPU 加速。`auto` 自动检测 GPU，无 GPU 时回退到 CPU。 | `cpu` |
+| `WHISPER_COMPUTE_TYPE` | 量化 / 计算类型。CPU 推荐 `int8`；CUDA 推荐 `float16`。 | `int8`（CPU）/ `float16`（CUDA） |
 | `WHISPER_THREADS` | 推理使用的 CPU 线程数。设为物理核心数可获得最佳延迟。 | `2` |
 | `WHISPER_API_KEY` | 可选的 Bearer 令牌。设置后所有请求须包含 `Authorization: Bearer <key>`。 | *（未设置）* |
 | `WHISPER_LOG_LEVEL` | 日志级别：`DEBUG`、`INFO`、`WARNING`、`ERROR`、`CRITICAL`。 | `INFO` |
@@ -179,6 +212,45 @@ volumes:
 ```
 
 **注：** 如需面向公网部署，强烈建议使用[反向代理](#使用反向代理)启用 HTTPS。此时请将 `docker-compose.yml` 中的 `"9000:9000/tcp"` 改为 `"127.0.0.1:9000:9000/tcp"`，以防止未加密端口被直接访问。当服务器可从公网访问时，请在 `env` 文件中设置 `WHISPER_API_KEY`。
+
+<details>
+<summary><strong>使用 docker-compose 部署 GPU（NVIDIA CUDA）</strong></summary>
+
+项目提供了单独的 `docker-compose.cuda.yml` 用于 GPU 部署：
+
+```bash
+cp whisper.env.example whisper.env
+# 按需编辑 whisper.env，然后：
+docker compose -f docker-compose.cuda.yml up -d
+docker logs whisper
+```
+
+示例 `docker-compose.cuda.yml`（已包含在项目中）：
+
+```yaml
+services:
+  whisper:
+    image: hwdsl2/whisper-server:cuda
+    container_name: whisper
+    restart: always
+    ports:
+      - "9000:9000/tcp"  # 如使用主机反向代理，改为 "127.0.0.1:9000:9000/tcp"
+    volumes:
+      - whisper-data:/var/lib/whisper
+      - ./whisper.env:/whisper.env:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  whisper-data:
+```
+
+</details>
 
 ## API 参考
 
@@ -545,9 +617,9 @@ curl -s http://localhost:4000/v1/chat/completions \
 
 ## 技术细节
 
-- 基础镜像：`python:3.12-slim`（Debian）
+- 基础镜像：`:latest` 使用 `python:3.12-slim`（Debian）；`:cuda` 使用 `nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04`
 - 运行时：Python 3（虚拟环境位于 `/opt/venv`）
-- STT 引擎：[faster-whisper](https://github.com/SYSTRAN/faster-whisper) + CTranslate2（默认 INT8）
+- STT 引擎：[faster-whisper](https://github.com/SYSTRAN/faster-whisper) + CTranslate2（CPU 默认 INT8，CUDA 默认 FP16）
 - API 框架：[FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/)
 - 音频解码：[PyAV](https://github.com/PyAV-Org/PyAV)（内置 FFmpeg 库）
 - 数据目录：`/var/lib/whisper`（Docker 数据卷）

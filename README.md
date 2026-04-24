@@ -15,6 +15,7 @@ Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-tex
 - All major audio formats supported (mp3, m4a, wav, webm, ogg, flac, and all ffmpeg formats)
 - Multiple response formats: JSON, plain text, verbose JSON, SRT subtitles, WebVTT subtitles
 - Streaming transcription — add `stream=true` to receive segments via SSE as they are decoded, with no waiting for the full file
+- NVIDIA GPU (CUDA) acceleration for faster inference (`:cuda` image tag)
 - Offline/air-gapped mode — run without internet access using pre-cached models (`WHISPER_LOCAL_ONLY`)
 - Automatically built and published via [GitHub Actions](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml)
 - Persistent model cache via a Docker volume
@@ -36,7 +37,7 @@ Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-tex
 | **Protocol** | HTTP REST | WebSocket (streaming) + HTTP REST |
 | **Latency** | Full file, then response | Near-real-time, word by word |
 | **Best for** | Meeting recordings, uploaded audio | Browser capture, RTSP streams, live captions |
-| **Image size** | ~180 MB | ~730 MB (includes PyTorch for VAD) |
+| **Image size** | ~180 MB (~3 GB for `:cuda`) | ~730 MB (~4.5 GB for `:cuda`) |
 
 ## Quick start
 
@@ -50,6 +51,25 @@ docker run \
     -p 9000:9000 \
     -d hwdsl2/whisper-server
 ```
+
+<details>
+<summary><strong>GPU quick start (NVIDIA CUDA)</strong></summary>
+
+If you have an NVIDIA GPU, use the `:cuda` image for hardware-accelerated inference:
+
+```bash
+docker run \
+    --name whisper \
+    --restart=always \
+    --gpus=all \
+    -v whisper-data:/var/lib/whisper \
+    -p 9000:9000 \
+    -d hwdsl2/whisper-server:cuda
+```
+
+**Requirements:** NVIDIA GPU, [NVIDIA driver](https://www.nvidia.com/en-us/drivers/) 535+, and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host. The `:cuda` image is `linux/amd64` only.
+
+</details>
 
 **Important:** This image requires at least 700 MB of available RAM for the default `base` model. Systems with 512 MB or less of RAM are not supported.
 
@@ -83,6 +103,13 @@ Alternatively, you may [set up Whisper without Docker](https://github.com/hwdsl2
 - Minimum RAM: ~700 MB free for the default `base` model (see [model table](#switching-models))
 - Internet access for the initial model download (the model is cached locally afterwards). Not required if using `WHISPER_LOCAL_ONLY=true` with pre-cached models.
 
+**For GPU acceleration (`:cuda` image):**
+
+- NVIDIA GPU with CUDA support (Compute Capability 6.0+)
+- [NVIDIA driver](https://www.nvidia.com/en-us/drivers/) 535 or later installed on the host
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed
+- The `:cuda` image supports `linux/amd64` only
+
 For internet-facing deployments, see [Using a reverse proxy](#using-a-reverse-proxy) to add HTTPS.
 
 ## Download
@@ -93,6 +120,12 @@ Get the trusted build from the [Docker Hub registry](https://hub.docker.com/r/hw
 docker pull hwdsl2/whisper-server
 ```
 
+For NVIDIA GPU acceleration, pull the `:cuda` tag instead:
+
+```bash
+docker pull hwdsl2/whisper-server:cuda
+```
+
 Alternatively, you may download from [Quay.io](https://quay.io/repository/hwdsl2/whisper-server):
 
 ```bash
@@ -100,7 +133,7 @@ docker pull quay.io/hwdsl2/whisper-server
 docker image tag quay.io/hwdsl2/whisper-server hwdsl2/whisper-server
 ```
 
-Supported platforms: `linux/amd64` and `linux/arm64`.
+Supported platforms: `linux/amd64` and `linux/arm64`. The `:cuda` tag supports `linux/amd64` only.
 
 ## Environment variables
 
@@ -113,8 +146,8 @@ This Docker image uses the following variables, that can be declared in an `env`
 | `WHISPER_MODEL` | Whisper model to use. See [model table](#switching-models) for options. | `base` |
 | `WHISPER_LANGUAGE` | Default transcription language. BCP-47 code (e.g. `en`, `fr`, `de`, `zh`, `ja`) or `auto` to autodetect. | `auto` |
 | `WHISPER_PORT` | HTTP port for the API (1–65535). | `9000` |
-| `WHISPER_DEVICE` | Compute device for inference. | `cpu` |
-| `WHISPER_COMPUTE_TYPE` | Quantization / compute type. `int8` is recommended. | `int8` |
+| `WHISPER_DEVICE` | Compute device: `cpu`, `cuda`, or `auto`. Use `cuda` with the `:cuda` image for GPU acceleration. `auto` detects GPU and falls back to CPU. | `cpu` |
+| `WHISPER_COMPUTE_TYPE` | Quantization / compute type. `int8` is recommended for CPU; `float16` is recommended for CUDA. | `int8` (CPU) / `float16` (CUDA) |
 | `WHISPER_THREADS` | CPU threads for inference. Set to the number of physical cores for best latency. | `2` |
 | `WHISPER_API_KEY` | Optional Bearer token. If set, all API requests must include `Authorization: Bearer <key>`. | *(not set)* |
 | `WHISPER_LOG_LEVEL` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. | `INFO` |
@@ -179,6 +212,45 @@ volumes:
 ```
 
 **Note:** For internet-facing deployments, using a [reverse proxy](#using-a-reverse-proxy) to add HTTPS is **strongly recommended**. In that case, also change `"9000:9000/tcp"` to `"127.0.0.1:9000:9000/tcp"` in `docker-compose.yml`, to prevent direct access to the unencrypted port. Set `WHISPER_API_KEY` in your `env` file when the server is accessible from the public internet.
+
+<details>
+<summary><strong>Using docker-compose with GPU (NVIDIA CUDA)</strong></summary>
+
+A separate `docker-compose.cuda.yml` is provided for GPU deployments:
+
+```bash
+cp whisper.env.example whisper.env
+# Edit whisper.env as needed, then:
+docker compose -f docker-compose.cuda.yml up -d
+docker logs whisper
+```
+
+Example `docker-compose.cuda.yml` (already included):
+
+```yaml
+services:
+  whisper:
+    image: hwdsl2/whisper-server:cuda
+    container_name: whisper
+    restart: always
+    ports:
+      - "9000:9000/tcp"  # For a host-based reverse proxy, change to "127.0.0.1:9000:9000/tcp"
+    volumes:
+      - whisper-data:/var/lib/whisper
+      - ./whisper.env:/whisper.env:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  whisper-data:
+```
+
+</details>
 
 ## API reference
 
@@ -545,9 +617,9 @@ curl -s http://localhost:4000/v1/chat/completions \
 
 ## Technical details
 
-- Base image: `python:3.12-slim` (Debian)
+- Base image: `python:3.12-slim` (Debian) for `:latest`; `nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04` for `:cuda`
 - Runtime: Python 3 (virtual environment at `/opt/venv`)
-- STT engine: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) with CTranslate2 (INT8 by default)
+- STT engine: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) with CTranslate2 (INT8 by default on CPU, FP16 on CUDA)
 - API framework: [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/)
 - Audio decoding: [PyAV](https://github.com/PyAV-Org/PyAV) (bundled FFmpeg libraries)
 - Data directory: `/var/lib/whisper` (Docker volume)
