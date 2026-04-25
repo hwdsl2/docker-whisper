@@ -172,7 +172,8 @@ docker run \
 
 `env` 檔案以綁定掛載方式傳入容器，每次重啟時自動生效，無需重建容器。
 
-或透過 `--env-file` 傳入：
+<details>
+<summary>或透過 <code>--env-file</code> 傳入</summary>
 
 ```bash
 docker run \
@@ -183,6 +184,8 @@ docker run \
     --env-file=whisper.env \
     -d hwdsl2/whisper-server
 ```
+
+</details>
 
 ## 使用 docker-compose
 
@@ -328,7 +331,8 @@ data: {"type":"done","text":"您好，最近好嗎？ 我很好，謝謝。"}
 
 上傳後第一個段落通常在 1–3 秒內到達。每個 `segment` 事件包含以秒為單位的 `start`/`end` 時間戳記。最後的 `done` 事件包含與標準 `json` 回應等效的完整轉錄文字。
 
-**範例 — 透過瀏覽器 `fetch` 進行串流傳輸：**
+<details>
+<summary><strong>範例 — 透過瀏覽器 <code>fetch</code> 進行串流傳輸</strong></summary>
 
 ```javascript
 const form = new FormData();
@@ -359,6 +363,8 @@ while (true) {
   }
 }
 ```
+
+</details>
 
 **範例 — 取得 SRT 字幕：**
 
@@ -565,7 +571,8 @@ graph LR
 | **[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh-Hant.md)** | AI 閘道——將請求路由至 OpenAI、Anthropic、Ollama 及 100+ 其他提供商 | `4000` |
 | **[Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh-Hant.md)** | 將文字轉換為自然語音 | `8880` |
 
-### 語音對話範例
+<details>
+<summary><strong>語音對話範例</strong></summary>
 
 將語音問題轉錄為文字，從大型語言模型取得回答，並轉換為語音輸出：
 
@@ -588,7 +595,10 @@ curl -s http://localhost:8880/v1/audio/speech \
     --output response.mp3
 ```
 
-### RAG 檢索增強生成範例
+</details>
+
+<details>
+<summary><strong>RAG 檢索增強生成範例</strong></summary>
 
 對文件進行向量化以實現語意檢索，並將檢索到的上下文傳送給大型語言模型進行問答：
 
@@ -614,6 +624,8 @@ curl -s http://localhost:4000/v1/chat/completions \
     }' \
     | jq -r '.choices[0].message.content'
 ```
+
+</details>
 
 ## 技術細節
 
