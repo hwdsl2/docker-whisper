@@ -2,7 +2,7 @@
 
 # Whisper Speech-to-Text on Docker
 
-[![Build Status](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml/badge.svg)](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml) &nbsp;[![License: MIT](docs/images/license.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml/badge.svg)](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml) &nbsp;[![License: MIT](docs/images/license.svg)](https://opensource.org/licenses/MIT) &nbsp;[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://vpnsetup.net/whisper-notebook)
 
 Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-text server, powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Provides an OpenAI-compatible audio transcription API. Based on Debian (python:3.12-slim). Designed to be simple, private, and self-hosted.
 
@@ -70,6 +70,8 @@ docker run \
 **Requirements:** NVIDIA GPU, [NVIDIA driver](https://www.nvidia.com/en-us/drivers/) 535+, and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host. The `:cuda` image is `linux/amd64` only.
 
 </details>
+
+**Try it online:** [Open in Colab](https://vpnsetup.net/whisper-notebook). No Docker or installation required. Runs in your browser.
 
 **Important:** This image requires at least 700 MB of available RAM for the default `base` model. Systems with 512 MB or less of RAM are not supported.
 

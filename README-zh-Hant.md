@@ -2,7 +2,7 @@
 
 # Whisper 語音轉文字 Docker 映像檔
 
-[![建置狀態](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml/badge.svg)](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml) &nbsp;[![License: MIT](docs/images/license.svg)](https://opensource.org/licenses/MIT)
+[![建置狀態](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml/badge.svg)](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml) &nbsp;[![License: MIT](docs/images/license.svg)](https://opensource.org/licenses/MIT) &nbsp;[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://vpnsetup.net/whisper-notebook)
 
 使用 [faster-whisper](https://github.com/SYSTRAN/faster-whisper) 在 Docker 容器中執行 [Whisper](https://github.com/openai/whisper) 語音轉文字伺服器。提供 OpenAI 相容的音訊轉錄 API。基於 Debian (python:3.12-slim)，簡單、私密、可自架。
 
@@ -70,6 +70,8 @@ docker run \
 **需求：** NVIDIA GPU、[NVIDIA 驅動程式](https://www.nvidia.com/en-us/drivers/) 535+，以及主機上已安裝 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)。`:cuda` 映像僅支援 `linux/amd64`。
 
 </details>
+
+**線上試用：** [在 Colab 中開啟](https://vpnsetup.net/whisper-notebook)。無需 Docker 或安裝，直接在瀏覽器中執行。
 
 **重要：** 此映像執行預設 `base` 模型需要至少 700 MB 可用記憶體。記憶體為 512 MB 或更少的系統不受支援。
 
