@@ -23,7 +23,7 @@ Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-tex
 
 **Also available:**
 
-- Without Docker: [Whisper install script](https://github.com/hwdsl2/whisper-install)
+- Try it online: [Open in Colab](https://vpnsetup.net/whisper-notebook) — no Docker or installation required
 - AI/Audio: [WhisperLive (real-time STT)](https://github.com/hwdsl2/docker-whisper-live), [Kokoro (TTS)](https://github.com/hwdsl2/docker-kokoro), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm)
 - VPN: [WireGuard](https://github.com/hwdsl2/docker-wireguard), [OpenVPN](https://github.com/hwdsl2/docker-openvpn), [IPsec VPN](https://github.com/hwdsl2/docker-ipsec-vpn-server), [Headscale](https://github.com/hwdsl2/docker-headscale)
 
@@ -70,8 +70,6 @@ docker run \
 **Requirements:** NVIDIA GPU, [NVIDIA driver](https://www.nvidia.com/en-us/drivers/) 535+, and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host. The `:cuda` image is `linux/amd64` only.
 
 </details>
-
-**Try it online:** [Open in Colab](https://vpnsetup.net/whisper-notebook). No Docker or installation required. Runs in your browser.
 
 **Important:** This image requires at least 700 MB of available RAM for the default `base` model. Systems with 512 MB or less of RAM are not supported.
 
