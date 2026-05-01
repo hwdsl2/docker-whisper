@@ -629,6 +629,88 @@ curl -s http://localhost:4000/v1/chat/completions \
 
 </details>
 
+
+<details>
+<summary><strong>完整技术栈 docker-compose 示例</strong></summary>
+
+使用一条命令部署所有服务。LiteLLM 通过共享 Docker 网络内部连接到 Ollama — 在 `litellm.env` 中设置 `LITELLM_OLLAMA_BASE_URL=http://ollama:11434`。
+
+**资源要求：** 同时运行所有服务至少需要 8 GB 内存（使用小型模型）。对于较大的 LLM 模型（8B+），建议 32 GB 或更多。您可以注释掉不需要的服务以减少内存使用。
+
+```yaml
+services:
+  ollama:
+    image: hwdsl2/ollama-server
+    container_name: ollama
+    restart: always
+    # ports:
+    #   - "11434:11434/tcp"  # 取消注释以直接访问 Ollama
+    volumes:
+      - ollama-data:/var/lib/ollama
+      - ./ollama.env:/ollama.env:ro
+
+  litellm:
+    image: hwdsl2/litellm-server
+    container_name: litellm
+    restart: always
+    ports:
+      - "4000:4000/tcp"
+    volumes:
+      - litellm-data:/etc/litellm
+      - ./litellm.env:/litellm.env:ro
+
+  embeddings:
+    image: hwdsl2/embeddings-server
+    container_name: embeddings
+    restart: always
+    ports:
+      - "8000:8000/tcp"
+    volumes:
+      - embeddings-data:/var/lib/embeddings
+      - ./embed.env:/embed.env:ro
+
+  whisper:
+    image: hwdsl2/whisper-server
+    container_name: whisper
+    restart: always
+    ports:
+      - "9000:9000/tcp"
+    volumes:
+      - whisper-data:/var/lib/whisper
+      - ./whisper.env:/whisper.env:ro
+
+  kokoro:
+    image: hwdsl2/kokoro-server
+    container_name: kokoro
+    restart: always
+    ports:
+      - "8880:8880/tcp"
+    volumes:
+      - kokoro-data:/var/lib/kokoro
+      - ./kokoro.env:/kokoro.env:ro
+
+volumes:
+  ollama-data:
+  litellm-data:
+  embeddings-data:
+  whisper-data:
+  kokoro-data:
+```
+
+如需 NVIDIA GPU 加速，将 ollama、whisper 和 kokoro 的镜像标签改为 `:cuda`，并为这些服务添加以下配置：
+
+```yaml
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+```
+
+</details>
+
 ## 技术细节
 
 - 基础镜像：`:latest` 使用 `python:3.12-slim`（Debian）；`:cuda` 使用 `nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04`

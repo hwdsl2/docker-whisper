@@ -629,6 +629,88 @@ curl -s http://localhost:4000/v1/chat/completions \
 
 </details>
 
+
+<details>
+<summary><strong>Full stack docker-compose example</strong></summary>
+
+Deploy all services with a single command. LiteLLM connects to Ollama internally via the shared Docker network — set `LITELLM_OLLAMA_BASE_URL=http://ollama:11434` in `litellm.env`.
+
+**Resource requirements:** Running all services together requires at least 8 GB of RAM (with small models). For larger LLM models (8B+), 32 GB or more is recommended. You can comment out services you don't need to reduce memory usage.
+
+```yaml
+services:
+  ollama:
+    image: hwdsl2/ollama-server
+    container_name: ollama
+    restart: always
+    # ports:
+    #   - "11434:11434/tcp"  # Uncomment for direct access to Ollama
+    volumes:
+      - ollama-data:/var/lib/ollama
+      - ./ollama.env:/ollama.env:ro
+
+  litellm:
+    image: hwdsl2/litellm-server
+    container_name: litellm
+    restart: always
+    ports:
+      - "4000:4000/tcp"
+    volumes:
+      - litellm-data:/etc/litellm
+      - ./litellm.env:/litellm.env:ro
+
+  embeddings:
+    image: hwdsl2/embeddings-server
+    container_name: embeddings
+    restart: always
+    ports:
+      - "8000:8000/tcp"
+    volumes:
+      - embeddings-data:/var/lib/embeddings
+      - ./embed.env:/embed.env:ro
+
+  whisper:
+    image: hwdsl2/whisper-server
+    container_name: whisper
+    restart: always
+    ports:
+      - "9000:9000/tcp"
+    volumes:
+      - whisper-data:/var/lib/whisper
+      - ./whisper.env:/whisper.env:ro
+
+  kokoro:
+    image: hwdsl2/kokoro-server
+    container_name: kokoro
+    restart: always
+    ports:
+      - "8880:8880/tcp"
+    volumes:
+      - kokoro-data:/var/lib/kokoro
+      - ./kokoro.env:/kokoro.env:ro
+
+volumes:
+  ollama-data:
+  litellm-data:
+  embeddings-data:
+  whisper-data:
+  kokoro-data:
+```
+
+For NVIDIA GPU acceleration, change image tags to `:cuda` for ollama, whisper, and kokoro, and add the following to each of those services:
+
+```yaml
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+```
+
+</details>
+
 ## Technical details
 
 - Base image: `python:3.12-slim` (Debian) for `:latest`; `nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04` for `:cuda`
