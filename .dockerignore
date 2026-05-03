@@ -4,6 +4,7 @@
 docker-compose.yml
 docker-compose.cuda.yml
 README*.md
+docs/
 notebooks/
 whisper.env
 whisper.env.example
