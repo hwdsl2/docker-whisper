@@ -138,7 +138,7 @@ Supported platforms: `linux/amd64` and `linux/arm64`. The `:cuda` tag supports `
 
 ## Environment variables
 
-All variables are optional. If not set, secure defaults are used automatically.
+All variables are optional. Set `WHISPER_API_KEY` to enable Bearer token authentication.
 
 This Docker image uses the following variables, that can be declared in an `env` file (see [example](whisper.env.example)):
 

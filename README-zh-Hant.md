@@ -138,7 +138,7 @@ docker image tag quay.io/hwdsl2/whisper-server hwdsl2/whisper-server
 
 ## 環境變數
 
-所有變數均為選用。如未設定，將自動使用安全的預設值。
+所有變數均為選用。設定 `WHISPER_API_KEY` 可啟用 Bearer Token 驗證。
 
 此 Docker 映像檔使用以下變數，可在 `env` 檔案中宣告（參見[範例](whisper.env.example)）：
 
