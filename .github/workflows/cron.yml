@@ -27,6 +27,13 @@ jobs:
       || needs.check_update_cuda.outputs.should_test == 'true'
     uses: ./.github/workflows/whisper_test.yml
 
+  cuda_test:
+    needs: [check_update, check_update_cuda, whisper_test]
+    if: |
+      needs.check_update_cuda.outputs.should_update == 'true'
+      || needs.check_update.outputs.should_update == 'true'
+    uses: ./.github/workflows/cuda_test.yml
+
   buildx:
     needs: [check_update, whisper_test]
     if: needs.check_update.outputs.should_update == 'true'
@@ -39,7 +46,7 @@ jobs:
       BUILD_ONLY: ${{ secrets.BUILD_ONLY }}
 
   buildx-cuda:
-    needs: [check_update, check_update_cuda, whisper_test]
+    needs: [check_update, check_update_cuda, whisper_test, cuda_test]
     if: |
       needs.check_update_cuda.outputs.should_update == 'true'
       || needs.check_update.outputs.should_update == 'true'

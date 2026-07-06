@@ -1,0 +1,74 @@
+name: cuda_test
+
+on: workflow_call
+
+permissions:
+  contents: read
+
+jobs:
+  cuda_test:
+    runs-on: ubuntu-24.04
+    if: github.repository_owner == 'hwdsl2'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Test CUDA image boot without GPU
+        run: |
+          [ ! -x /usr/bin/docker ] && exit 1
+
+          cd "$GITHUB_WORKSPACE"
+          pwd
+
+          set -x
+
+          docker build -f Dockerfile.cuda -t whisper-cuda-test .
+
+          docker run \
+            --name whisper-cuda-runtime-test \
+            --restart=always \
+            -v whisper-cuda-runtime-test-data:/var/lib/whisper \
+            -e WHISPER_MODEL=tiny \
+            -e WHISPER_DEVICE=cpu \
+            -e WHISPER_API_KEY=test-whisper-cuda-key \
+            -p 9000:9000/tcp \
+            -d whisper-cuda-test
+
+          # Wait for server to be ready (up to 300 seconds for model download)
+          i=0
+          while [ "$i" -lt 300 ]; do
+            if docker exec whisper-cuda-runtime-test curl -sf http://127.0.0.1:9000/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+            i=$((i + 1))
+          done
+
+          docker ps | grep whisper-cuda-runtime-test
+          docker logs whisper-cuda-runtime-test
+
+          # Verify the CUDA image can boot on a non-GPU runner in explicit CPU mode.
+          docker logs whisper-cuda-runtime-test 2>&1 | grep -Eq 'Device:[[:space:]]+cpu'
+
+          # Verify health, auth enforcement, and the OpenAI-compatible models endpoint.
+          docker exec whisper-cuda-runtime-test curl -sf http://127.0.0.1:9000/health
+
+          http_code=$(curl -s -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:9000/v1/models 2>/dev/null || true)
+          [ "$http_code" = "401" ] || { echo "Expected 401 without key, got $http_code"; exit 1; }
+
+          curl -sf http://127.0.0.1:9000/v1/models \
+            -H "Authorization: Bearer test-whisper-cuda-key" \
+            | grep -q '"object"'
+
+          docker exec whisper-cuda-runtime-test whisper_manage --showinfo
+          docker exec whisper-cuda-runtime-test whisper_manage --listmodels
+          docker exec whisper-cuda-runtime-test python3 -c 'import faster_whisper; print("faster-whisper import ok")'
+
+          exit 0
+      - name: Clear
+        if: always()
+        run: |
+          docker rm -f whisper-cuda-runtime-test || true
+          docker volume rm whisper-cuda-runtime-test-data || true
+          docker rmi whisper-cuda-test || true
