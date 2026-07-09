@@ -48,6 +48,7 @@ ARG BUILD_DATE
 ARG VERSION
 ARG VCS_REF
 ENV IMAGE_VER=$BUILD_DATE
+ENV IMAGE_FLAVOR=$VERSION
 
 LABEL maintainer="Lin Song <linsongui@gmail.com>" \
     org.opencontainers.image.created="$BUILD_DATE" \
