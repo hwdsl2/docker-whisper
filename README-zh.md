@@ -187,6 +187,7 @@ docker image tag quay.io/hwdsl2/whisper-server hwdsl2/whisper-server
 | `WHISPER_DIARIZATION` | 设为 `true` 启用说话人分离，识别每个片段中的说话人。使用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 和 pyannote segmentation-3.0 ONNX 模型（约 45 MB，首次使用时自动下载）。不支持流式模式。 | *（未设置）* |
 | `WHISPER_DIARIZE_NUM_SPEAKERS` | 说话人确切数量（如已知）。提高聚类准确性。设为 `-1` 或留空表示自动检测。 | `-1` |
 | `WHISPER_DIARIZE_THRESHOLD` | 自动检测时使用的聚类阈值。值越小检测到的说话人越多，值越大检测到的越少。设置确切说话人数量时会忽略此项。 | `0.5` |
+| `WHISPER_DISABLE_USAGE_COUNTS` | 设为 `1` 可禁用匿名聚合使用计数。 | *（未设置）* |
 
 **注：** 在 `env` 文件中，值可用单引号括起，例如 `VAR='value'`。`=` 两侧不要有空格。如更改 `WHISPER_PORT`，请相应更新 `docker run` 命令中的 `-p` 参数。
 
@@ -709,6 +710,10 @@ docker exec whisper whisper_manage --downloaddiarize
 - 说话人分离需要完整音频分析，**不支持流式模式**（`stream=true`）。两者同时启用时，说话人分离会被静默跳过。
 - 如果已知确切说话人数量，设置 `WHISPER_DIARIZE_NUM_SPEAKERS` 可提高准确性。
 - 说话人分离在转录完成后运行，会增加与音频时长成正比的少量处理时间。
+
+## 使用计数
+
+此镜像使用公开的 GitHub Release 资源下载次数进行匿名聚合使用计数。计数是近似值，不代表唯一用户或活跃安装。镜像不会发送遥测负载，也不会使用私有收集器。仅当服务器成功启动且挂载了 `/var/lib/whisper` 卷后，才会以尽力而为方式计数；当该持久化安装首次运行不同镜像构建时，也会再次计数。要退出，请设置 `WHISPER_DISABLE_USAGE_COUNTS=1`。
 
 ## 技术细节
 

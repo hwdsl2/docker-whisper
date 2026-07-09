@@ -187,6 +187,7 @@ This Docker image uses the following variables, that can be declared in an `env`
 | `WHISPER_DIARIZATION` | Set to `true` to enable speaker diarization. Identifies who is speaking in each segment. Uses [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) with pyannote segmentation-3.0 ONNX models (~45 MB, auto-downloaded on first use). Not supported in streaming mode. | *(not set)* |
 | `WHISPER_DIARIZE_NUM_SPEAKERS` | Exact number of speakers (if known). Improves clustering accuracy. Set to `-1` or leave unset for auto-detection. | `-1` |
 | `WHISPER_DIARIZE_THRESHOLD` | Clustering threshold for auto-detection. Lower = more speakers detected, higher = fewer. Ignored when exact speaker count is set. | `0.5` |
+| `WHISPER_DISABLE_USAGE_COUNTS` | Set to `1` to disable anonymous aggregate usage counts. | *(not set)* |
 
 **Note:** In your `env` file, you may enclose values in single quotes, e.g. `VAR='value'`. Do not add spaces around `=`. If you change `WHISPER_PORT`, update the `-p` flag in the `docker run` command accordingly.
 
@@ -709,6 +710,10 @@ docker exec whisper whisper_manage --downloaddiarize
 - Diarization requires full audio analysis and is **not supported in streaming mode** (`stream=true`). If both are enabled, diarization is silently skipped.
 - Set `WHISPER_DIARIZE_NUM_SPEAKERS` if you know the exact number of speakers for better accuracy.
 - The diarization pipeline runs after transcription, adding a small amount of processing time proportional to audio duration.
+
+## Usage counts
+
+This image uses public GitHub release asset download counts for anonymous, aggregate usage counts. Counts are approximate and are not unique users or active installs. The image does not send a telemetry payload or use a private collector. It only attempts the best-effort count after the server starts successfully with a mounted `/var/lib/whisper` volume, and again when that persistent install first runs a different image build. To opt out, set `WHISPER_DISABLE_USAGE_COUNTS=1`.
 
 ## Technical details
 
