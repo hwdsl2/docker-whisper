@@ -45,6 +45,7 @@ logger = logging.getLogger("whisper_server")
 _model = None       # WhisperModel instance
 _model_name = None  # name as loaded (e.g. "base")
 _beam_size = 5      # beam size used for transcription
+_max_request_beam = 10  # maximum per-request beam override; 0 disables the cap
 _word_timestamps = False  # default for word-level timestamps
 _diarization_enabled = False  # set via WHISPER_DIARIZATION=true
 _max_upload_bytes = 1024 * 1024 * 1024  # 1 GiB by default; 0 disables the limit
@@ -117,7 +118,7 @@ def _load_diarizer() -> None:
 
 def _load_model() -> None:
     """Import and initialise the faster-whisper model from environment config."""
-    global _model, _model_name, _beam_size, _word_timestamps, _max_upload_bytes
+    global _model, _model_name, _beam_size, _max_request_beam, _word_timestamps, _max_upload_bytes
 
     from faster_whisper import WhisperModel  # deferred — keeps import fast
 
@@ -128,8 +129,15 @@ def _load_model() -> None:
     cache_dir        = os.environ.get("HF_HOME", "/var/lib/whisper")
     local_files_only = bool(os.environ.get("WHISPER_LOCAL_ONLY", "").strip())
     _beam_size       = _env_int("WHISPER_BEAM", 5)
+    _max_request_beam = _env_int("WHISPER_MAX_REQUEST_BEAM", 10)
     _word_timestamps = os.environ.get("WHISPER_WORD_TIMESTAMPS", "").strip().lower() == "true"
     max_upload_mb    = _env_int("WHISPER_MAX_UPLOAD_MB", 1024)
+    if _max_request_beam < 0:
+        logger.error(
+            "Invalid value for WHISPER_MAX_REQUEST_BEAM: %d (expected 0 or greater); using default 10",
+            _max_request_beam,
+        )
+        _max_request_beam = 10
     if max_upload_mb < 0:
         logger.error(
             "Invalid value for WHISPER_MAX_UPLOAD_MB: %d (expected 0 or greater); using default 1024",
@@ -139,8 +147,8 @@ def _load_model() -> None:
     _max_upload_bytes = max_upload_mb * 1024 * 1024
 
     logger.info(
-        "Loading model '%s' | device=%s compute_type=%s threads=%d beam=%d word_ts=%s max_upload_mb=%d local_only=%s cache=%s",
-        model_name, device, compute_type, threads, _beam_size, _word_timestamps, max_upload_mb, local_files_only, cache_dir,
+        "Loading model '%s' | device=%s compute_type=%s threads=%d beam=%d max_request_beam=%d word_ts=%s max_upload_mb=%d local_only=%s cache=%s",
+        model_name, device, compute_type, threads, _beam_size, _max_request_beam, _word_timestamps, max_upload_mb, local_files_only, cache_dir,
     )
     t0 = time.monotonic()
     _model = WhisperModel(
@@ -266,6 +274,28 @@ def _validate_temperature(temperature: float) -> None:
         )
 
 
+def _resolve_request_beam(beam: Optional[str]) -> int:
+    """Resolve the optional local beam override for a single request."""
+    if beam is None:
+        return _beam_size
+
+    value = beam.strip()
+    if not value or not value.isascii() or not value.isdecimal() or value.startswith("0"):
+        raise HTTPException(status_code=400, detail="beam must be a positive integer.")
+
+    request_beam = int(value)
+    if _max_request_beam and request_beam > _max_request_beam:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"beam must be less than or equal to {_max_request_beam}. "
+                "Set WHISPER_MAX_REQUEST_BEAM=0 to disable this per-request cap."
+            ),
+        )
+
+    return request_beam
+
+
 # ---------------------------------------------------------------------------
 # Timestamp helpers
 # ---------------------------------------------------------------------------
@@ -322,6 +352,7 @@ async def _stream_sse(
     lang: Optional[str],
     prompt: Optional[str],
     temperature: float,
+    beam_size: int,
     task: str = "transcribe",
 ):
     """
@@ -351,7 +382,7 @@ async def _stream_sse(
                     task=task,
                     initial_prompt=prompt or None,
                     temperature=temperature,
-                    beam_size=_beam_size,
+                    beam_size=beam_size,
                     vad_filter=True,
                 )
                 for seg in segs_gen:
@@ -439,6 +470,7 @@ async def _handle_audio(
     response_format: str,
     temperature: float,
     stream: Optional[str],
+    beam: Optional[str],
     timestamp_granularities: Optional[List[str]] = None,
 ):
     """
@@ -449,6 +481,7 @@ async def _handle_audio(
         raise HTTPException(status_code=503, detail="Model is not loaded yet. Please retry.")
 
     _validate_temperature(temperature)
+    request_beam = _resolve_request_beam(beam)
 
     # Block translation on English-only models
     if task == "translate" and _model_name and _model_name.endswith(".en"):
@@ -527,9 +560,9 @@ async def _handle_audio(
         raise HTTPException(status_code=500, detail=f"Failed to save upload: {exc}") from exc
 
     logger.info(
-        "%s '%s' (%d bytes) | lang=%s format=%s stream=%s word_ts=%s",
+        "%s '%s' (%d bytes) | lang=%s format=%s stream=%s beam=%d word_ts=%s",
         "Translating" if task == "translate" else "Transcribing",
-        original_name, upload_size, lang or "auto", response_format, stream_flag, wt_flag,
+        original_name, upload_size, lang or "auto", response_format, stream_flag, request_beam, wt_flag,
     )
 
     # ------------------------------------------------------------------
@@ -539,7 +572,7 @@ async def _handle_audio(
     # ------------------------------------------------------------------
     if stream_flag:
         return StreamingResponse(
-            _stream_sse(tmp_path, lang, prompt, temperature, task),
+            _stream_sse(tmp_path, lang, prompt, temperature, request_beam, task),
             media_type="text/event-stream",
             headers={
                 "X-Accel-Buffering": "no",   # disable nginx proxy buffering
@@ -559,7 +592,7 @@ async def _handle_audio(
                     task=task,
                     initial_prompt=prompt or None,
                     temperature=temperature,
-                    beam_size=_beam_size,
+                    beam_size=request_beam,
                     word_timestamps=wt_flag,
                     vad_filter=True,
                 )
@@ -689,6 +722,13 @@ async def transcribe(
         default=0.0,
         description="Sampling temperature between 0 and 1.",
     ),
+    beam: Optional[str] = Form(
+        default=None,
+        description=(
+            "Local faster-whisper extension: per-request beam size. "
+            "Omit to use WHISPER_BEAM."
+        ),
+    ),
     stream: Optional[str] = Form(
         default=None,
         description=(
@@ -761,6 +801,7 @@ async def transcribe(
         response_format=response_format,
         temperature=temperature,
         stream=stream,
+        beam=beam,
         timestamp_granularities=timestamp_granularities,
     )
 
@@ -787,6 +828,13 @@ async def translate(
     temperature: float = Form(
         default=0.0,
         description="Sampling temperature between 0 and 1.",
+    ),
+    beam: Optional[str] = Form(
+        default=None,
+        description=(
+            "Local faster-whisper extension: per-request beam size. "
+            "Omit to use WHISPER_BEAM."
+        ),
     ),
     stream: Optional[str] = Form(
         default=None,
@@ -819,6 +867,7 @@ async def translate(
         response_format=response_format,
         temperature=temperature,
         stream=stream,
+        beam=beam,
     )
 
 
