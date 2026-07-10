@@ -1,6 +1,9 @@
 import importlib
+import asyncio
+import os
 import pathlib
 import sys
+import tempfile
 import types
 import unittest
 
@@ -23,6 +26,19 @@ class _FastAPI:
         return lambda func: func
 
 
+class _Response:
+    def __init__(self, content=None, media_type=None, headers=None):
+        self.content = content
+        self.media_type = media_type
+        self.headers = headers or {}
+
+
+class _StreamingResponse(_Response):
+    def __init__(self, content=None, media_type=None, headers=None):
+        super().__init__(content=content, media_type=media_type, headers=headers)
+        self.body_iterator = content
+
+
 def _install_stubs():
     fastapi = types.ModuleType("fastapi")
     fastapi.Depends = lambda *args, **kwargs: None
@@ -35,9 +51,9 @@ def _install_stubs():
     sys.modules["fastapi"] = fastapi
 
     responses = types.ModuleType("fastapi.responses")
-    responses.JSONResponse = object
-    responses.PlainTextResponse = object
-    responses.StreamingResponse = object
+    responses.JSONResponse = _Response
+    responses.PlainTextResponse = _Response
+    responses.StreamingResponse = _StreamingResponse
     sys.modules["fastapi.responses"] = responses
 
     sys.modules["uvicorn"] = types.ModuleType("uvicorn")
@@ -130,6 +146,159 @@ class TemperatureValidationTests(unittest.TestCase):
             api_server._validate_temperature(1.01)
         self.assertEqual(ctx.exception.status_code, 400)
         self.assertIn("between 0 and 1", ctx.exception.detail)
+
+
+class BeamValidationTests(unittest.TestCase):
+    def setUp(self):
+        self.old_beam_size = api_server._beam_size
+        self.old_max_request_beam = api_server._max_request_beam
+        api_server._beam_size = 5
+        api_server._max_request_beam = 10
+
+    def tearDown(self):
+        api_server._beam_size = self.old_beam_size
+        api_server._max_request_beam = self.old_max_request_beam
+
+    def test_omitted_beam_uses_global_default(self):
+        self.assertEqual(api_server._resolve_request_beam(None), 5)
+
+    def test_accepts_valid_request_beams(self):
+        self.assertEqual(api_server._resolve_request_beam("1"), 1)
+        self.assertEqual(api_server._resolve_request_beam("5"), 5)
+        self.assertEqual(api_server._resolve_request_beam("10"), 10)
+        self.assertEqual(api_server._resolve_request_beam(" 7 "), 7)
+
+    def test_rejects_invalid_request_beams(self):
+        for value in ("", "   ", "0", "01", "+1", "-1", "abc", "1.5", "1_000"):
+            with self.subTest(value=value):
+                with self.assertRaises(api_server.HTTPException) as ctx:
+                    api_server._resolve_request_beam(value)
+                self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_rejects_request_beam_above_cap(self):
+        with self.assertRaises(api_server.HTTPException) as ctx:
+            api_server._resolve_request_beam("11")
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("less than or equal to 10", ctx.exception.detail)
+
+    def test_allows_uncapped_request_beam(self):
+        api_server._max_request_beam = 0
+        self.assertEqual(api_server._resolve_request_beam("25"), 25)
+
+
+class _FakeUpload:
+    filename = "audio.wav"
+
+    def __init__(self, data=b"audio"):
+        self._data = data
+
+    async def read(self, _size):
+        data = self._data
+        self._data = b""
+        return data
+
+
+class _FakeSegment:
+    text = " hello "
+
+
+class _FakeInfo:
+    language = "en"
+    language_probability = 1.0
+    duration = 1.0
+    duration_after_vad = 1.0
+
+
+class _FakeModel:
+    def __init__(self):
+        self.calls = []
+
+    def transcribe(self, _path, **kwargs):
+        self.calls.append(kwargs)
+        return iter([_FakeSegment()]), _FakeInfo()
+
+
+class BeamPropagationTests(unittest.TestCase):
+    def setUp(self):
+        self.old_model = api_server._model
+        self.old_model_name = api_server._model_name
+        self.old_beam_size = api_server._beam_size
+        self.old_max_request_beam = api_server._max_request_beam
+        self.old_max_upload_bytes = api_server._max_upload_bytes
+        self.old_diarization_enabled = api_server._diarization_enabled
+        api_server._model_name = "base"
+        api_server._beam_size = 5
+        api_server._max_request_beam = 10
+        api_server._max_upload_bytes = 0
+        api_server._diarization_enabled = False
+
+    def tearDown(self):
+        api_server._model = self.old_model
+        api_server._model_name = self.old_model_name
+        api_server._beam_size = self.old_beam_size
+        api_server._max_request_beam = self.old_max_request_beam
+        api_server._max_upload_bytes = self.old_max_upload_bytes
+        api_server._diarization_enabled = self.old_diarization_enabled
+
+    def test_batch_transcription_uses_request_beam(self):
+        model = _FakeModel()
+        api_server._model = model
+
+        response = asyncio.run(api_server._handle_audio(
+            task="transcribe",
+            file=_FakeUpload(),
+            model="whisper-1",
+            language=None,
+            prompt=None,
+            response_format="json",
+            temperature=0,
+            stream=None,
+            beam="7",
+        ))
+
+        self.assertEqual(response.content, {"text": "hello"})
+        self.assertEqual(model.calls[0]["beam_size"], 7)
+
+    def test_batch_transcription_falls_back_to_global_beam(self):
+        model = _FakeModel()
+        api_server._model = model
+
+        asyncio.run(api_server._handle_audio(
+            task="translate",
+            file=_FakeUpload(),
+            model="whisper-1",
+            language=None,
+            prompt=None,
+            response_format="json",
+            temperature=0,
+            stream=None,
+            beam=None,
+        ))
+
+        self.assertEqual(model.calls[0]["beam_size"], 5)
+
+    def test_streaming_transcription_uses_request_beam(self):
+        model = _FakeModel()
+        api_server._model = model
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp_path = tmp.name
+
+        async def collect_stream():
+            frames = []
+            async for frame in api_server._stream_sse(
+                tmp_path, lang=None, prompt=None, temperature=0, beam_size=9, task="transcribe"
+            ):
+                frames.append(frame)
+            return frames
+
+        try:
+            frames = asyncio.run(collect_stream())
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+        self.assertEqual(model.calls[0]["beam_size"], 9)
+        self.assertTrue(any("transcript.text.done" in frame for frame in frames))
 
 
 if __name__ == "__main__":
