@@ -180,7 +180,8 @@ docker image tag quay.io/hwdsl2/whisper-server hwdsl2/whisper-server
 | `WHISPER_THREADS` | 推論使用的 CPU 執行緒數。設為實體核心數可獲得最佳延遲。 | `2` |
 | `WHISPER_API_KEY` | 選用的 Bearer 令牌。新持久化安裝會自動產生。設定後所有請求須包含 `Authorization: Bearer <key>`。明確設定為空可停用驗證。 | 新持久化安裝自動產生 |
 | `WHISPER_LOG_LEVEL` | 日誌等級：`DEBUG`、`INFO`、`WARNING`、`ERROR`、`CRITICAL`。 | `INFO` |
-| `WHISPER_BEAM` | 轉錄解碼的 beam 大小。較大的值可能以速度換取精確度。使用 `1` 可獲得最快的貪婪解碼。 | `5` |
+| `WHISPER_BEAM` | 轉錄和翻譯解碼的 beam 大小。較大的值可能以速度換取精確度。使用 `1` 可獲得最快的貪婪解碼。 | `5` |
+| `WHISPER_MAX_REQUEST_BEAM` | 每個請求的 `beam` 覆寫值允許的最大 beam 大小。設為 `0` 可停用此限制。 | `10` |
 | `WHISPER_MAX_UPLOAD_MB` | 上傳音訊檔案的最大大小（MB）。超過此限制的請求會返回 HTTP 413。設為 `0` 可停用此限制。 | `1024` |
 | `WHISPER_LOCAL_ONLY` | 設為任意非空值（如 `true`）時，停用所有 HuggingFace 模型下載。適用於預先快取模型的離線或隔離網路部署。 | *（未設定）* |
 | `WHISPER_WORD_TIMESTAMPS` | 設為 `true` 時，全域啟用詞級時間戳。`verbose_json` 輸出將包含頂層 `words` 陣列，含每個詞的起止時間和置信度。也可透過 `timestamp_granularities[]=word` 按請求啟用。 | *（未設定）* |
@@ -321,6 +322,8 @@ Content-Type: multipart/form-data
 | `temperature` | 浮點數 | — | 採樣溫度（0–1），預設為 `0`。 |
 | `stream` | 布林值 | — | 啟用 SSE 串流。為 `true` 時，段落將在解碼時以 `text/event-stream` 事件形式回傳。預設為 `false`。 |
 | `timestamp_granularities[]` | 陣列 | — | 時間戳粒度。值：`word`、`segment`。包含 `word` 時，`verbose_json` 輸出包含頂層 `words` 陣列。預設：`["segment"]`。 |
+
+**本地 faster-whisper 擴充：** 可設定 `beam`，為單一轉錄或翻譯請求覆寫 `WHISPER_BEAM`。這不是 OpenAI API 架構的一部分，因此不要將其傳送到託管的 OpenAI API 或嚴格相容 OpenAI 的閘道。每請求預設上限為 `10`（`WHISPER_MAX_REQUEST_BEAM`）；將該變數設為 `0` 可停用上限。Beam 搜尋主要影響 `temperature=0` 時的確定性解碼。
 
 **範例：**
 
