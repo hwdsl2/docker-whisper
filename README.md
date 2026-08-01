@@ -20,7 +20,7 @@ Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-tex
 - Streaming transcription — add `stream=true` to receive segments via SSE as they are decoded, with no waiting for the full file
 - NVIDIA GPU (CUDA) acceleration for faster inference (`:cuda` image tag)
 - Offline/air-gapped mode — run without internet access using pre-cached models (`WHISPER_LOCAL_ONLY`)
-- Automatically built and published via [GitHub Actions](https://github.com/hwdsl2/docker-whisper/actions/workflows/main.yml)
+- Automatically built and published via [GitHub Actions](https://github.com/hwdsl2/docker-whisper/actions)
 - Persistent model cache via a Docker volume
 - Multi-arch: `linux/amd64`, `linux/arm64`
 
