@@ -22,11 +22,17 @@ jobs:
 
           set -x
 
-          docker build -f Dockerfile.cuda -t whisper-cuda-test .
+          docker build \
+            -f Dockerfile.cuda \
+            --build-arg BUILD_DATE=ci-test \
+            --build-arg VERSION=cuda \
+            -t whisper-cuda-test \
+            .
 
           docker run \
             --name whisper-cuda-runtime-test \
             --restart=always \
+            -e WHISPER_DISABLE_USAGE_COUNTS=1 \
             -v whisper-cuda-runtime-test-data:/var/lib/whisper \
             -e WHISPER_MODEL=tiny \
             -e WHISPER_DEVICE=cpu \

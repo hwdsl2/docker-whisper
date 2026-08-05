@@ -50,6 +50,7 @@ jobs:
             docker run \
               --name "$TEST_ID" \
               --restart=always \
+              -e WHISPER_DISABLE_USAGE_COUNTS=1 \
               -v whisper-test-data:/var/lib/whisper \
               -e WHISPER_MODEL=tiny \
               -e WHISPER_DIARIZATION=true \
@@ -59,6 +60,7 @@ jobs:
             docker run \
               --name "$TEST_ID" \
               --restart=always \
+              -e WHISPER_DISABLE_USAGE_COUNTS=1 \
               -v whisper-test-data:/var/lib/whisper \
               -v ./whisper.env.example:/whisper.env:ro \
               -e WHISPER_MODEL=tiny \
@@ -68,6 +70,7 @@ jobs:
             docker run \
               --name "$TEST_ID" \
               --restart=always \
+              -e WHISPER_DISABLE_USAGE_COUNTS=1 \
               -v whisper-test-data:/var/lib/whisper \
               -e WHISPER_MODEL=tiny \
               -p 9000:9000/tcp \
@@ -76,6 +79,7 @@ jobs:
             docker run \
               --name "$TEST_ID" \
               --restart=always \
+              -e WHISPER_DISABLE_USAGE_COUNTS=1 \
               -v whisper-test-data:/var/lib/whisper \
               -e WHISPER_MODEL=tiny \
               -e WHISPER_API_KEY=test-whisper-key \
@@ -85,6 +89,7 @@ jobs:
             docker run \
               --name "$TEST_ID" \
               --restart=always \
+              -e WHISPER_DISABLE_USAGE_COUNTS=1 \
               -v whisper-test-data:/var/lib/whisper \
               -e WHISPER_MODEL=tiny \
               -e WHISPER_API_KEY= \
@@ -94,6 +99,7 @@ jobs:
             docker run \
               --name "$TEST_ID" \
               --restart=always \
+              -e WHISPER_DISABLE_USAGE_COUNTS=1 \
               -v whisper-test-data:/var/lib/whisper \
               -e WHISPER_MODEL=tiny \
               -p 9000:9000/tcp \
