@@ -8,6 +8,8 @@
 
 使用 [faster-whisper](https://github.com/SYSTRAN/faster-whisper) 在 Docker 容器中运行 [Whisper](https://github.com/openai/whisper) 语音转文字服务器。提供 OpenAI 兼容的音频转录和翻译 API。基于 Debian (python:3.12-slim)，简单、私密、可自托管。
 
+> 📘 **新书：**[The Self-Hosted AI Builder’s Guide](https://books2read.com/aiguide?store=amazon)——了解如何将此服务部署为完整且默认安全的私有 AI 技术栈的一部分。
+
 **功能特性：**
 
 - OpenAI 兼容的 `POST /v1/audio/transcriptions` 和 `POST /v1/audio/translations` 接口 — 任何调用 OpenAI Whisper API 的应用只需修改一行配置即可切换
@@ -26,7 +28,6 @@
 
 **另提供：**
 
-- **新书：**[The Self-Hosted AI Builder’s Guide](https://books2read.com/aiguide?store=amazon)——将此服务部署为安全、完整的私有 AI 技术栈的一部分
 - 在线试用：[在 Colab 中打开](https://vpnsetup.net/whisper-notebook)——无需 Docker 或安装
 - 相关 AI 服务：[WhisperLive](https://github.com/hwdsl2/docker-whisper-live/blob/main/README-zh.md)、[Kokoro](https://github.com/hwdsl2/docker-kokoro/blob/main/README-zh.md)、[Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-zh.md)、[LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-zh.md)、[Ollama](https://github.com/hwdsl2/docker-ollama/blob/main/README-zh.md)、[Docling](https://github.com/hwdsl2/docker-docling/blob/main/README-zh.md)、[MCP Gateway](https://github.com/hwdsl2/docker-mcp-gateway/blob/main/README-zh.md)
 

@@ -8,6 +8,8 @@ Part of the [Self-Hosted AI Stack](https://github.com/hwdsl2/self-hosted-ai-stac
 
 Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-text server, powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Provides OpenAI-compatible audio transcription and translation APIs. Based on Debian (python:3.12-slim). Designed to be simple, private, and self-hosted.
 
+> 📘 **New book:** [The Self-Hosted AI Builder’s Guide](https://books2read.com/aiguide?store=amazon) — learn how to deploy this service as part of a complete, secure-by-default private AI stack.
+
 **Features:**
 
 - OpenAI-compatible `POST /v1/audio/transcriptions` and `POST /v1/audio/translations` endpoints — any app using the OpenAI Whisper API switches with a one-line change
@@ -26,7 +28,6 @@ Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-tex
 
 **Also available:**
 
-- **New book:** [The Self-Hosted AI Builder’s Guide](https://books2read.com/aiguide?store=amazon) — deploy this service as part of a secure, complete private AI stack
 - Try it online: [Open in Colab](https://vpnsetup.net/whisper-notebook) — no Docker or installation required
 - Related AI services: [WhisperLive](https://github.com/hwdsl2/docker-whisper-live), [Kokoro](https://github.com/hwdsl2/docker-kokoro), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm), [Ollama](https://github.com/hwdsl2/docker-ollama), [Docling](https://github.com/hwdsl2/docker-docling), [MCP Gateway](https://github.com/hwdsl2/docker-mcp-gateway)
 

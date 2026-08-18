@@ -8,6 +8,8 @@
 
 Docker-образ для запуска сервера распознавания речи [Whisper](https://github.com/openai/whisper) на базе [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Предоставляет совместимые с OpenAI API для транскрибирования и перевода аудио. Основан на Debian (python:3.12-slim). Простой, приватный, для самостоятельного развёртывания.
 
+> 📘 **Новая книга:** [The Self-Hosted AI Builder’s Guide](https://books2read.com/aiguide?store=amazon) — узнайте, как развернуть этот сервис в составе полного приватного AI-стека с безопасными настройками по умолчанию.
+
 **Возможности:**
 
 - Совместимые с OpenAI эндпоинты `POST /v1/audio/transcriptions` и `POST /v1/audio/translations` — любое приложение, использующее OpenAI Whisper API, переключается с изменением одной строки
@@ -26,7 +28,6 @@ Docker-образ для запуска сервера распознавани�
 
 **Также доступно:**
 
-- **Новая книга:** [The Self-Hosted AI Builder’s Guide](https://books2read.com/aiguide?store=amazon) — разверните этот сервис в составе безопасного и полного приватного AI-стека
 - Попробовать онлайн: [Открыть в Colab](https://vpnsetup.net/whisper-notebook) — Docker и установка не требуются
 - Связанные AI-сервисы: [WhisperLive](https://github.com/hwdsl2/docker-whisper-live/blob/main/README-ru.md), [Kokoro](https://github.com/hwdsl2/docker-kokoro/blob/main/README-ru.md), [Embeddings](https://github.com/hwdsl2/docker-embeddings/blob/main/README-ru.md), [LiteLLM](https://github.com/hwdsl2/docker-litellm/blob/main/README-ru.md), [Ollama](https://github.com/hwdsl2/docker-ollama/blob/main/README-ru.md), [Docling](https://github.com/hwdsl2/docker-docling/blob/main/README-ru.md), [MCP Gateway](https://github.com/hwdsl2/docker-mcp-gateway/blob/main/README-ru.md)
 
