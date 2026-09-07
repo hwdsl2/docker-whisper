@@ -10,8 +10,7 @@ WORKDIR /opt/src
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH" \
-    TMPDIR="/run/whisper-temp"
+    PATH="/opt/venv/bin:$PATH"
 
 # faster-whisper decodes audio via the PyAV library (bundled FFmpeg libraries).
 # curl is used by run.sh for the public-IP lookup and the health-check poll.
@@ -39,6 +38,8 @@ COPY ./diarizer.py /opt/src/diarizer.py
 COPY ./LICENSE.md /opt/src/LICENSE.md
 RUN chmod 755 /opt/src/run.sh /opt/src/manage.sh \
     && ln -s /opt/src/manage.sh /usr/local/bin/whisper_manage
+
+ENV TMPDIR="/run/whisper-temp"
 
 EXPOSE 9000/tcp
 VOLUME ["/var/lib/whisper"]
