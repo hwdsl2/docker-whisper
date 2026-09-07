@@ -17,7 +17,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # curl is used by run.sh for the public-IP lookup and the health-check poll.
 RUN set -x \
     && apt-get update \
-    && apt-get install -y --no-install-recommends curl bzip2 python3 python3-venv \
+    && apt-get install -y --no-install-recommends ca-certificates curl bzip2 python3 python3-venv \
     && python3 -m venv /opt/venv \
     && pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir --uploaded-prior-to P7D \
