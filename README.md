@@ -8,8 +8,6 @@ Part of the [Self-Hosted AI Stack](https://github.com/hwdsl2/self-hosted-ai-stac
 
 Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-text server, powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Provides OpenAI-compatible audio transcription and translation APIs. Based on Debian (python:3.12-slim). Designed to be simple, private, and self-hosted.
 
-> 📘 **New book:** [The Self-Hosted AI Builder’s Guide](https://books2read.com/aiguide?store=amazon) — learn how to deploy this service as part of a complete, secure-by-default private AI stack.
-
 **Features:**
 
 - OpenAI-compatible `POST /v1/audio/transcriptions` and `POST /v1/audio/translations` endpoints — any app using the OpenAI Whisper API switches with a one-line change
@@ -26,27 +24,12 @@ Docker image to run a [Whisper](https://github.com/openai/whisper) speech-to-tex
 - Persistent model cache via a Docker volume
 - Multi-arch: `linux/amd64`, `linux/arm64`
 
+> 📘 **New book:** [The Self-Hosted AI Builder’s Guide](https://books2read.com/aiguide?store=amazon). A practical guide to building, securing, and operating your own private AI stack.
+
 **Also available:**
 
 - Try it online: [Open in Colab](https://vpnsetup.net/whisper-notebook) — no Docker or installation required
 - Related AI services: [WhisperLive](https://github.com/hwdsl2/docker-whisper-live), [Kokoro](https://github.com/hwdsl2/docker-kokoro), [Embeddings](https://github.com/hwdsl2/docker-embeddings), [LiteLLM](https://github.com/hwdsl2/docker-litellm), [Ollama](https://github.com/hwdsl2/docker-ollama), [Docling](https://github.com/hwdsl2/docker-docling), [MCP Gateway](https://github.com/hwdsl2/docker-mcp-gateway)
-
-## Community
-
-- 📬 [Subscribe for project updates](https://selfhostedstack.beehiiv.com/subscribe?utm_campaign=ai) (1–2 emails/month) — get free AI and VPN deployment guides (PDF)
-- 💬 Join the [r/selfhostedstack](https://www.reddit.com/r/selfhostedstack/) community for discussions and showcases
-- ⭐ Star the repository if you find it useful — it helps others discover it
-
-<details>
-<summary>Self-hosted VPN & networking projects</summary>
-
-- [Setup IPsec VPN](https://github.com/hwdsl2/setup-ipsec-vpn)
-- [IPsec VPN on Docker](https://github.com/hwdsl2/docker-ipsec-vpn-server)
-- [WireGuard](https://github.com/hwdsl2/docker-wireguard)
-- [OpenVPN](https://github.com/hwdsl2/docker-openvpn)
-- [Headscale](https://github.com/hwdsl2/docker-headscale)
-
-</details>
 
 ## When to use Whisper vs. WhisperLive
 
@@ -125,6 +108,23 @@ curl http://your_server_ip:9000/v1/audio/transcriptions \
 ```
 
 Alternatively, you may [set up Whisper without Docker](https://github.com/hwdsl2/whisper-install). To learn more about how to use this image, read the sections below.
+
+## Community
+
+- 📬 [Get project updates and free deployment guides](https://selfhostedstack.beehiiv.com/subscribe?utm_campaign=ai) (1–2 emails/month)
+- 💬 Join the [r/selfhostedstack](https://www.reddit.com/r/selfhostedstack/) community for discussions and showcases
+- ⭐ Star the repository if you find it useful — it helps others discover it
+
+<details>
+<summary>Self-hosted VPN & networking projects</summary>
+
+- [Setup IPsec VPN](https://github.com/hwdsl2/setup-ipsec-vpn)
+- [IPsec VPN on Docker](https://github.com/hwdsl2/docker-ipsec-vpn-server)
+- [WireGuard](https://github.com/hwdsl2/docker-wireguard)
+- [OpenVPN](https://github.com/hwdsl2/docker-openvpn)
+- [Headscale](https://github.com/hwdsl2/docker-headscale)
+
+</details>
 
 ## Requirements
 
