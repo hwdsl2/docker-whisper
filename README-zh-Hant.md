@@ -24,7 +24,7 @@
 - 透過 Docker 資料卷持久化模型快取
 - 多架構支援：`linux/amd64`、`linux/arm64`
 
-> 📘 **Kindle 限時優惠：$0.99/£0.99（僅限美國和英國）。**[The Self-Hosted AI Builder’s Guide](https://books2read.com/aiguide?store=amazon) 是一本關於建置、保護和維運自己的私有 AI 技術棧的實用指南。
+> 📘 [The Self-Hosted AI Builder’s Guide](https://books2read.com/aiguide?store=amazon) 是一本介紹本機大型語言模型、RAG、語音 AI，以及使用 Docker 安全部署 AI 服務的實用指南。**電子書：$0.99/£0.99，優惠至 9 月 20 日止**（僅限美國/英國）。
 
 **另提供：**
 
