@@ -75,7 +75,8 @@ docker run \
 
 **Important:** This image requires at least 700 MB of available RAM for the default `base` model. Systems with 512 MB or less of RAM are not supported.
 
-**Note:** For internet-facing deployments, using a [reverse proxy](#using-a-reverse-proxy) to add HTTPS is **strongly recommended**. In that case, also replace `-p 9000:9000` with `-p 127.0.0.1:9000:9000` in the `docker run` command above, to prevent direct access to the unencrypted port.
+> [!NOTE]
+> For internet-facing deployments, use a [reverse proxy](#using-a-reverse-proxy) to add HTTPS. Also replace `-p 9000:9000` with `-p 127.0.0.1:9000:9000` in the `docker run` command above, to prevent direct access to the unencrypted port.
 
 The Whisper `base` model (~145 MB) is downloaded and cached on first start. Check the logs to confirm the server is ready:
 
@@ -252,7 +253,8 @@ volumes:
     name: whisper-data
 ```
 
-**Note:** For internet-facing deployments, using a [reverse proxy](#using-a-reverse-proxy) to add HTTPS is **strongly recommended**. In that case, also change `"9000:9000/tcp"` to `"127.0.0.1:9000:9000/tcp"` in `docker-compose.yml`, to prevent direct access to the unencrypted port.
+> [!NOTE]
+> For internet-facing deployments, use a [reverse proxy](#using-a-reverse-proxy) to add HTTPS. Also change `"9000:9000/tcp"` to `"127.0.0.1:9000:9000/tcp"` in `docker-compose.yml`, to prevent direct access to the unencrypted port.
 
 <details>
 <summary><strong>Using docker-compose with GPU (NVIDIA CUDA)</strong></summary>
@@ -711,7 +713,10 @@ docker exec whisper whisper_manage --downloaddiarize
 ```
 
 **Notes:**
-- Diarization requires full audio analysis and is **not supported in streaming mode** (`stream=true`). If both are enabled, diarization is silently skipped.
+
+> [!IMPORTANT]
+> Diarization requires full audio analysis and is **not supported in streaming mode** (`stream=true`). If both are enabled, diarization is silently skipped.
+
 - Set `WHISPER_DIARIZE_NUM_SPEAKERS` if you know the exact number of speakers for better accuracy.
 - The diarization pipeline runs after transcription, adding a small amount of processing time proportional to audio duration.
 
